@@ -1,0 +1,29 @@
+#!/bin/sh
+
+echo "===> Refreshing OPNsense menu cache"
+rm -f /var/lib/php/tmp/opnsense_menu_cache.xml /var/lib/php/tmp/opnsense_acl_cache.json
+rm -f /usr/local/opnsense/service/conf/actions.d/actions_mihomo.conf
+service configd restart >/dev/null 2>&1 || true
+
+# 不直接删除用户配置（订阅 env、secret、config.yaml），同步搬移到 /root 下留档
+# （不再后台 sleep：重装竞态由 +PRE_INSTALL 快照天然兜底）。
+# 后缀用 PID 而非 date：manifest 内嵌脚本里一切 % 字符都会被破坏（实测被吃成 mHS）。
+echo "===> Moving mihomo config to /root (kept, not deleted)"
+if [ -d /usr/local/etc/mihomo ]; then
+    mv /usr/local/etc/mihomo "/root/os-mihomo-removed-$$"
+fi
+rm -f /root/os-mihomo-install-warning.log
+
+# 卸载卫生：清掉 pkg 不拥有的运行时 drop-in 与残留，防孤儿 cron / 幽灵服务
+# （pkg delete 只删 manifest 内文件；以下均为运行时生成，必须显式清理）
+rm -f /etc/cron.d/os-mihomo
+rm -f /etc/rc.conf.d/mihomo_hev
+rm -rf /usr/local/opnsense/scripts/OPNsense/Mihomo/__pycache__
+service cron restart >/dev/null 2>&1 || true
+
+# 固件页反登记：pkg-script(5) 规定 post-deinstall 在包文件删除之后执行，此时
+# /usr/local/opnsense/version/mihomo 已被删，register.php remove 走注销分支，
+# 防 pkg delete 后固件页出现「缺失」幽灵标签（与 core remove.sh 的 GUI 卸载路径对称，幂等）。
+if [ -x /usr/local/bin/php ] && [ -f /usr/local/opnsense/scripts/firmware/register.php ]; then
+    /usr/bin/timeout 60 /usr/local/bin/php /usr/local/opnsense/scripts/firmware/register.php remove os-mihomo > /dev/null 2>&1 || true
+fi

@@ -1,0 +1,44 @@
+<form>
+    <field>
+        <id>mihomo.general.enabled</id>
+        <label>启用 Mihomo</label>
+        <type>checkbox</type>
+        <help>启用或禁用 Mihomo 核心代理服务。</help>
+    </field>
+    <field>
+        <id>mihomo.general.log_level</id>
+        <label>日志级别</label>
+        <type>dropdown</type>
+        <help>选择 Mihomo 核心运行日志级别（debug、info、warning、error、silent）。</help>
+    </field>
+    <field>
+        <id>mihomo.general.transport_mode</id>
+        <label>传输模式</label>
+        <type>dropdown</type>
+        <help>仅代理模式仅监听本地回环（127.0.0.1）SOCKS 端口；透明代理模式通过 hev 虚拟隧道与 PF 锚点自动接管局域网流量。</help>
+    </field>
+    <field>
+        <id>mihomo.general.lan_expose</id>
+        <label>LAN 代理暴露</label>
+        <type>checkbox</type>
+        <help>默认禁用：代理仅监听 127.0.0.1 回环接口（SOCKS 7890/7891），局域网客户端无法直连。启用后将绑定到局域网侧并要求身份认证。</help>
+    </field>
+    <field>
+        <id>mihomo.general.lan_user</id>
+        <label>LAN 代理用户名</label>
+        <type>text</type>
+        <help>局域网代理客户端连接时使用的用户名。仅允许 1-32 位字母、数字及 . _ @ - 字符；未填或非法将回退为 mihomo。</help>
+    </field>
+    <field>
+        <id>mihomo.general.api_bind</id>
+        <label>API 绑定地址</label>
+        <type>text</type>
+        <help>Mihomo 外部控制 API 与内置面板的监听地址。127.0.0.1=仅本机；接口 IP=该网段可用（推荐，例如填 LAN 口 IP 后局域网 metacubexd 可直连）；0.0.0.0=全部接口含 WAN（IPv4+IPv6）。注意：非 127.0.0.1 时 /ui/ 静态页免密可达、API 走 Bearer 明文 HTTP；必须先配置 API 密钥。</help>
+    </field>
+    <field>
+        <id>mihomo.general.api_port</id>
+        <label>API 端口</label>
+        <type>text</type>
+        <help>外部控制 API 端口（1024-65535，默认 9090）。修改后 metacubexd 等客户端连接地址需同步更改。系统 WebGUI/SSH 端口及保留端口不可用。</help>
+    </field>
+</form>

@@ -1,0 +1,168 @@
+#!/bin/sh
+
+# os-mihomo post-install (socks-core mode + upgrade protection)
+# 本模式不写 /conf/config.xml、不改 Unbound；PF 只允许 mihomo-transport anchor。
+# 本脚本整体内嵌进 +MANIFEST 由 pkg 执行：禁止反斜杠续行、禁止一切百分号字符。
+# 严格顺序：① 快照恢复（缺失项用 sample 兜底） ② 每次安装强制轮换 secret
+# ③ 健康门禁 ④ 按模型幂等重挂透明代理传输层 ⑤ watchdog cron 自举。
+
+echo "===> Configuring os-mihomo (socks-core mode)"
+
+CONF_DIR=/usr/local/etc/mihomo
+SNAP_DIR=/var/db/os-mihomo/pre-upgrade
+DEFAULT_API_PORT="9090"
+DEFAULT_API_BIND="127.0.0.1"
+
+mkdir -p /etc/rc.conf.d /var/db/os-mihomo
+touch /var/log/mihomo.log /var/log/mihomo_sub.log /var/log/mihomo_watchdog.log /var/log/mihomo_hev.log 2>/dev/null || true
+
+# rc.conf.d 仅在缺失时写 enable=YES（不覆盖用户禁用状态）
+if [ ! -f /etc/rc.conf.d/mihomo ]; then
+    echo 'mihomo_enable="YES"' > /etc/rc.conf.d/mihomo
+fi
+if [ ! -f /etc/rc.conf.d/mihomo_hev ]; then
+    echo 'mihomo_hev_enable="YES"' > /etc/rc.conf.d/mihomo_hev
+fi
+
+# ---- Step 1: restore user data from pre-upgrade snapshot, fall back to samples ----
+for _f in config.yaml sub/env custom-rules.txt secret.key sub/template_config.yaml; do
+    if [ -f "$SNAP_DIR/$_f" ]; then
+        mkdir -p "$CONF_DIR/$(dirname "$_f")" 2>/dev/null || true
+        cp -f "$SNAP_DIR/$_f" "$CONF_DIR/$_f"
+    fi
+done
+# 缺失项兜底：config.yaml / sub/env 用包内 sample（custom-rules.txt 由运行时生成，不兜底）
+if [ ! -f "$CONF_DIR/config.yaml" ] && [ -f "$CONF_DIR/config.yaml.sample" ]; then
+    cp -f "$CONF_DIR/config.yaml.sample" "$CONF_DIR/config.yaml"
+fi
+if [ ! -f "$CONF_DIR/sub/env" ] && [ -f "$CONF_DIR/sub/env.sample" ]; then
+    mkdir -p "$CONF_DIR/sub" 2>/dev/null || true
+    cp -f "$CONF_DIR/sub/env.sample" "$CONF_DIR/sub/env"
+fi
+# hev.yaml 仅在缺失时从 sample 安装（升级保留用户自定的上游/MTU）
+if [ ! -f "$CONF_DIR/hev.yaml" ] && [ -f "$CONF_DIR/hev.yaml.sample" ]; then
+    cp -f "$CONF_DIR/hev.yaml.sample" "$CONF_DIR/hev.yaml"
+fi
+
+# Script permissions（manifest 内嵌脚本禁止续行，长列表一律单行）
+chmod 0755 /usr/local/etc/mihomo/sub/sub.sh /usr/bin/mihomo_sub /usr/local/etc/rc.d/mihomo /usr/local/etc/rc.d/mihomo_hev 2>/dev/null || true
+chmod 0755 /usr/local/opnsense/scripts/OPNsense/Mihomo/service_manager.sh /usr/local/opnsense/scripts/OPNsense/Mihomo/secret_manager.sh /usr/local/opnsense/scripts/OPNsense/Mihomo/atomic_config_updater.sh /usr/local/opnsense/scripts/OPNsense/Mihomo/watchdog.sh /usr/local/opnsense/scripts/OPNsense/Mihomo/system_status.py /usr/local/opnsense/scripts/OPNsense/Mihomo/transport_manager.sh /usr/local/opnsense/scripts/OPNsense/Mihomo/custom_rules_apply.sh /usr/local/opnsense/scripts/OPNsense/Mihomo/subscription_env_writer.php /usr/local/opnsense/scripts/OPNsense/Mihomo/custom_rules_validate.php /usr/local/opnsense/scripts/OPNsense/Mihomo/transport_render.php /usr/local/opnsense/scripts/OPNsense/Mihomo/api_bind_manager.sh 2>/dev/null || true
+chmod 0644 /usr/local/etc/mihomo/pf-transport.conf /usr/local/etc/mihomo/config.yaml.sample /usr/local/etc/mihomo/sub/env.sample /usr/local/etc/mihomo/hev.yaml.sample /usr/local/etc/mihomo/sub/sub_lib.sh 2>/dev/null || true
+
+# ---- Step 2: 每次安装初始化强制轮换 API secret（16 位，必含大写/小写/数字） ----
+# 轮换联动 secret.key、config.yaml 的 secret 与 authentication 口令、订阅模板、sub/env。
+# 旧「升级保留原 secret」行为按用户要求废除：每次安装完成后都是新 secret，
+# UI/外部 API 客户端需用新值重新登录（面板 masked 页可查看掩码）。
+if [ -x /usr/local/opnsense/scripts/OPNsense/Mihomo/secret_manager.sh ]; then
+    /usr/local/opnsense/scripts/OPNsense/Mihomo/secret_manager.sh generate > /dev/null 2>&1 || echo "WARNING: secret rotation failed; previous secret kept." >&2
+fi
+# 兜底：config.yaml 缺 secret 行而 secret.key 有值时强制写入（防免密暴露）
+if [ -f /usr/local/etc/mihomo/config.yaml ] && [ -s /usr/local/etc/mihomo/secret.key ]; then
+    _cfg_sec=$(sed -n "s/^secret:[[:space:]]*[\"'\'' ]*\([^\"'\'' #]*\).*/\1/p" /usr/local/etc/mihomo/config.yaml 2>/dev/null | head -n 1)
+    if [ -z "$_cfg_sec" ]; then
+        if [ -x /usr/local/opnsense/scripts/OPNsense/Mihomo/secret_manager.sh ]; then
+            _b64=$(base64 /usr/local/etc/mihomo/secret.key | tr -d '\n')
+            /usr/local/opnsense/scripts/OPNsense/Mihomo/secret_manager.sh set "b64:$_b64" > /dev/null 2>&1 || true
+        fi
+    fi
+fi
+chmod 0600 /usr/local/etc/mihomo/secret.key /usr/local/etc/mihomo/config.yaml /usr/local/etc/mihomo/sub/env /usr/local/etc/mihomo/sub/template_config.yaml /usr/local/etc/mihomo/hev.yaml /usr/local/etc/mihomo/custom-rules.txt 2>/dev/null || true
+
+# Legacy WebGUI cleanup（仅清理旧版遗留页面，不触碰其他插件）
+rm -f /usr/local/www/mihomo.php /usr/local/www/mihomo_logs.php /usr/local/www/mihomo_sub.php /usr/local/www/mihomo_sub_log.php
+rm -f /var/lib/php/tmp/opnsense_menu_cache.xml /var/lib/php/tmp/opnsense_acl_cache.json
+rm -rf /tmp/opnsense_template_cache 2>/dev/null || true
+
+# ---- Step 2.5: upgrade migration & reconcile before restart ----
+/usr/local/bin/php -r '$db=$argv[1];$dp=$argv[2];$y=@file_get_contents("/usr/local/etc/mihomo/config.yaml");if($y&&preg_match("/^external-controller:[[:space:]]*[\x22\x27]?([^:\x22\x27[:space:]]+):([0-9]+)/m",$y,$m)){$yb=trim($m[1]);$yp=trim($m[2]);$c=@simplexml_load_file("/conf/config.xml");if($c){$mbNodes=$c->xpath("//OPNsense/mihomo/general/api_bind");$mb=!empty($mbNodes)?(string)$mbNodes[0]:$db;$mpNodes=$c->xpath("//OPNsense/mihomo/general/api_port");$mp=!empty($mpNodes)?(string)$mpNodes[0]:$dp;if($mb===$db&&$mp===$dp&&($yb!==$db||$yp!==$dp)){$doc=new DOMDocument();if($doc->load("/conf/config.xml")){$xp=new DOMXPath($doc);$gen=$xp->query("/opnsense/OPNsense/mihomo/general")->item(0);if($gen instanceof DOMElement){foreach(["api_bind"=>$yb,"api_port"=>$yp] as $k=>$v){$el=$xp->query("./".$k,$gen)->item(0);if($el instanceof DOMElement){$el->nodeValue=$v;}else{$gen->appendChild($doc->createElement($k,$v));}}$tmp="/conf/config.xml.os-mihomo-mig.tmp";if($doc->save($tmp)!==false){chmod($tmp,0640);rename($tmp,"/conf/config.xml");}}}}}}' -- "$DEFAULT_API_BIND" "$DEFAULT_API_PORT" >/dev/null 2>&1 || true
+
+if [ -f /usr/local/opnsense/scripts/OPNsense/Mihomo/api_bind_manager.sh ]; then
+    sh /usr/local/opnsense/scripts/OPNsense/Mihomo/api_bind_manager.sh reconcile || echo "WARNING: api_bind reconcile failed before restart." >&2
+fi
+
+echo "===> Reloading OPNsense services"
+service configd restart >/dev/null 2>&1 || true
+
+echo "===> Starting mihomo (socks-core, no TUN, no DNS changes)"
+service mihomo restart >/dev/null 2>&1 || true
+
+# ---- Step 3: health gate ----
+_xml_addr=$(/usr/local/bin/php -r '$c=@simplexml_load_file("/conf/config.xml");if($c){$b=$c->xpath("//OPNsense/mihomo/general/api_bind");$p=$c->xpath("//OPNsense/mihomo/general/api_port");$bs=!empty($b)?trim((string)$b[0]):"";$ps=!empty($p)?trim((string)$p[0]):"";echo $bs . " " . $ps;}' 2>/dev/null || true)
+_target_bind=$(echo "$_xml_addr" | cut -d' ' -f1)
+_target_port=$(echo "$_xml_addr" | cut -d' ' -f2)
+if [ -z "$_target_port" ] || ! echo "$_target_port" | grep -Eq '^[0-9]+$'; then
+    _addr=$(awk -F: '/^external-controller:[[:space:]]*/ { sub(/^external-controller:[[:space:]]*/, ""); split($0, a, ":"); h=a[1]; p=a[2]; sub(/^[ \t"\x27]+/, "", h); sub(/[ \t"\x27]+$/, "", h); sub(/^[ \t"\x27]+/, "", p); sub(/[ \t"\x27]+.*$/, "", p); print h, p; exit }' "$CONF_DIR/config.yaml" 2>/dev/null || true)
+    [ -z "$_target_bind" ] && _target_bind=$(echo "$_addr" | cut -d' ' -f1)
+    _target_port=$(echo "$_addr" | cut -d' ' -f2)
+fi
+[ -z "$_target_bind" ] && _target_bind="$DEFAULT_API_BIND"
+[ -z "$_target_port" ] && _target_port="$DEFAULT_API_PORT"
+
+port_up() {
+    _p="$1"
+    if [ "$_p" = "$_target_port" ]; then
+        if [ "$_target_bind" = "0.0.0.0" ]; then
+            sockstat -l -p "$_p" 2>/dev/null | grep -E "(\*|0\.0\.0\.0):$_p" >/dev/null
+        else
+            sockstat -l -p "$_p" 2>/dev/null | grep -F "$_target_bind:$_p" >/dev/null
+        fi
+    else
+        sockstat -l -p "$_p" 2>/dev/null | grep -E "(127\.0\.0\.1|\*|0\.0\.0\.0):$_p" >/dev/null
+    fi
+}
+
+HEALTH_OK=0
+_i=0
+while [ "$_i" -lt 30 ]; do
+    if port_up 7891 && port_up 1053 && port_up "$_target_port"; then
+        HEALTH_OK=1
+        break
+    fi
+    sleep 1
+    _i=$((_i + 1))
+done
+
+if [ "$HEALTH_OK" -eq 1 ]; then
+    echo "===> os-mihomo healthy: socks 7891 / dns 1053 / api $_target_port all listening"
+else
+    echo "WARNING: os-mihomo health check FAILED after install (7891/1053/$_target_port not ready in 30s)." >&2
+    echo "  DIRECT internet and DNS are NOT affected. Check: service mihomo status ; tail -50 /var/log/mihomo.log" >&2
+    echo "  Rollback: pkg delete os-mihomo" >&2
+    echo "os-mihomo HEALTH CHECK FAILED after install (7891/1053/$_target_port not ready in 30s)." > /root/os-mihomo-install-warning.log
+fi
+
+# ---- Step 4: 按模型幂等重挂传输层（仅当模型 transport_mode=transparent 且健康门禁通过） ----
+# 注意守卫路径必须写全 /usr/local/opnsense/...：$CONF_DIR/../opnsense 会展开成
+# 不存在的 /usr/local/etc/opnsense，导致 transparent 升级后传输层静默不重挂。
+if [ "$HEALTH_OK" -eq 1 ] && [ -x /usr/local/opnsense/scripts/OPNsense/Mihomo/transport_manager.sh ]; then
+    _MODE=$(/usr/local/bin/php -r '$c=@simplexml_load_file("/conf/config.xml"); $m=$c?$c->xpath("//OPNsense/mihomo/general/transport_mode"):array(); echo (string)(isset($m[0])?$m[0]:"proxy");' 2>/dev/null || echo proxy)
+    if [ "$_MODE" = "transparent" ]; then
+        echo "===> Re-enabling transparent transport (model mode: transparent)"
+        /usr/local/opnsense/scripts/OPNsense/Mihomo/transport_manager.sh enable || echo "WARNING: transport enable failed; system stays in plain proxy mode (DIRECT LAN unaffected)." >&2
+    fi
+fi
+
+# ---- Step 5: watchdog cron 自举（fail-open 安全网自安装起生效） ----
+# 重写 /etc/cron.d 前从模型读回订阅节律（Mihomo.xml subscription/auto_update
+# 与 auto_interval，默认 0/o24h），否则每次升级都会删掉既有订阅自动更新行。
+# 注意：manifest 内嵌禁止反斜杠续行与百分号字符，php 命令必须绝对路径单行。
+if [ -x /usr/local/bin/php ] && [ -f /usr/local/opnsense/scripts/OPNsense/Mihomo/mihomo_setup.php ]; then
+    _CRON_MODEL=$(/usr/local/bin/php -r '$c=@simplexml_load_file("/conf/config.xml");$au="0";$ai="o24h";if($c){$a=$c->xpath("//OPNsense/mihomo/subscription/auto_update");$i=$c->xpath("//OPNsense/mihomo/subscription/auto_interval");if(!empty($a)){$v=trim((string)$a[0]);if($v==="1"||$v==="true"){$au="1";}}$ok=array("o6h","o12h","o24h");if(!empty($i)){$v=trim((string)$i[0]);if(in_array($v,$ok,true)){$ai=$v;}}}echo $au . " " . $ai;' 2>/dev/null || true)
+    _AUTO_UPDATE=$(echo "$_CRON_MODEL" | cut -d' ' -f1)
+    _AUTO_INTERVAL=$(echo "$_CRON_MODEL" | cut -d' ' -f2)
+    case "$_AUTO_UPDATE" in 0|1) ;; *) _AUTO_UPDATE=0 ;; esac
+    case "$_AUTO_INTERVAL" in o6h|o12h|o24h) ;; *) _AUTO_INTERVAL=o24h ;; esac
+    /usr/local/bin/php /usr/local/opnsense/scripts/OPNsense/Mihomo/mihomo_setup.php --cron-only "$_AUTO_UPDATE" "$_AUTO_INTERVAL" > /dev/null 2>&1 || echo "WARNING: watchdog cron bootstrap failed; fail-open safety net inactive until subscription save." >&2
+fi
+
+# ---- Step 6: 固件页登记（pkg add 直装不经过 GUI install.sh 的 register.php，
+# 未登记会让固件页显示「配置错误」；register.php 幂等，GUI 路径重复调用无害）----
+if [ -x /usr/local/bin/php ] && [ -f /usr/local/opnsense/version/mihomo ] && [ -f /usr/local/opnsense/scripts/firmware/register.php ]; then
+    /usr/bin/timeout 60 /usr/local/bin/php /usr/local/opnsense/scripts/firmware/register.php install os-mihomo > /dev/null 2>&1 || echo "WARNING: firmware registration failed; GUI shows misconfigured (cosmetic only)." >&2
+fi
+
+# 一键安装钩子：pkg 会把调用方环境传给本脚本，带 MIHOMO_SETUP_URL 即装即部署
+if [ -n "${MIHOMO_SETUP_URL:-}" ]; then
+    sh /usr/local/etc/mihomo/setup.sh "${MIHOMO_SETUP_URL}" "${MIHOMO_SETUP_TRANSPORT:-transparent}" "${MIHOMO_SETUP_INTERVAL:-o24h}" || echo "WARNING: one-click setup failed; run: sh /usr/local/etc/mihomo/setup.sh <url>" >&2
+fi
+

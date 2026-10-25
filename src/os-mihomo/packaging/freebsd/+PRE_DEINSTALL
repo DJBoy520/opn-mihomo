@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# os-mihomo pre-deinstall
+# 第一步 transport-disable（幂等，冲掉 anchor + 停 hev），再执行既有停服逻辑。
+# PRE 阶段不写 /conf/config.xml、未修改 Unbound，无需还原动作
+# （POST_DEINSTALL 仅做一次固件页 plugins 反登记，幂等、未登记时不写盘）。
+
+if [ -x /usr/local/opnsense/scripts/OPNsense/Mihomo/transport_manager.sh ]; then
+    /usr/local/opnsense/scripts/OPNsense/Mihomo/transport_manager.sh disable >/dev/null 2>&1 || true
+fi
+
+echo "===> Stopping mihomo"
+service mihomo stop >/dev/null 2>&1 || true
+pkill -TERM -f '^/usr/local/bin/mihomo' 2>/dev/null || true
+rm -f /var/run/mihomo.pid /var/run/mihomo_state.json /var/run/mihomo_hev.pid
+rm -f /usr/local/www/mihomo.php /usr/local/www/mihomo_logs.php /usr/local/www/mihomo_sub.php /usr/local/www/mihomo_sub_log.php
+
+# 唯一可能的外部联动：hev-socks5-tunnel 上游若已指向本插件 socks 端口，由运维手册负责切回原核心（见 rescue.sh）。

@@ -1,0 +1,23 @@
+# hev-socks5-tunnel config sample (transparent transport layer)
+# Installed as /usr/local/etc/mihomo/hev.yaml by transport_manager.sh when absent.
+# Schema mirrors the proven production layout:
+#   tun0 own address 10.0.0.2, remote gateway 10.0.0.1 — must stay in sync with
+#   the pf route-to target "(tun0 10.0.0.1)" rendered by transport_render.php.
+# NOTE: hev-socks5-tunnel needs a pseudo-terminal on FreeBSD; mihomo_hev wraps it
+# with script(1) (see rc.d/mihomo_hev).
+tunnel:
+  name: tun0
+  mtu: 1500
+  ipv4: 10.0.0.2
+  ipv4-gateway: 10.0.0.1
+  ipv6: ''
+socks5:
+  address: 127.0.0.1
+  port: 7891
+  udp: 'udp'
+  # username/password 由 transport_manager.sh 依 config.yaml authentication
+  # 自动双向同步（fixB）：勿手工维护。mihomo 未启用 authentication 时此处
+  # 必须无凭证，否则 SOCKS5 方法协商失败、透明链路被静默掐断。
+misc:
+  log-file: /var/log/mihomo_hev.log
+  log-level: warn

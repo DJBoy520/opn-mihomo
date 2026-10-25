@@ -1,0 +1,199 @@
+#!/bin/sh
+
+# PROVIDE: mihomo_hev
+# REQUIRE: NETWORKING mihomo
+# KEYWORD: shutdown
+
+# mihomo_hev - hev-socks5-tunnel rc.d 守护脚本
+# 用于透明代理传输层 tun0 设备创建与流量转发至 mihomo 本地 socks 端口 (7891)
+
+. /etc/rc.subr
+
+name="mihomo_hev"
+rcvar="mihomo_hev_enable"
+desc="hev-socks5-tunnel for mihomo transparent transport"
+
+pidfile="/var/run/mihomo_hev.pid"
+bin="/usr/local/bin/hev-socks5-tunnel"
+conf="/usr/local/etc/mihomo/hev.yaml"
+# hev-socks5-tunnel 在 FreeBSD 上需要伪终端才能运行（生产 hev_socks5_tunnel 同款做法）：
+# 用 script(1) 提供 pty，daemon -p 记录的子 pid 即 script 进程
+script_bin="/usr/bin/script"
+tun_dev="${MIHOMO_TUN_DEV:-tun0}"
+
+start_cmd="mihomo_hev_start"
+stop_cmd="mihomo_hev_stop"
+status_cmd="mihomo_hev_status"
+extra_commands="healthcheck"
+healthcheck_cmd="mihomo_hev_healthcheck"
+
+: ${mihomo_hev_enable:="NO"}
+
+mihomo_hev_start()
+{
+    # 1. 检查必要文件是否存在
+    if [ ! -x "${bin}" ]; then
+        echo "错误：找不到可执行文件 ${bin}"
+        return 1
+    fi
+
+    if [ ! -f "${conf}" ]; then
+        echo "错误：找不到配置文件 ${conf}"
+        return 1
+    fi
+
+    # 2. 检查内核 tun 模块（幂等加载 if_tun）
+    kldload -q if_tun 2>/dev/null || true
+
+    # 3. 检查是否已在运行（pidfile 存活则直接返回 0）
+    if [ -f "${pidfile}" ]; then
+        _pid="$(cat "${pidfile}" 2>/dev/null || true)"
+        if [ -n "${_pid}" ] && kill -0 "${_pid}" 2>/dev/null; then
+            echo "${name} 已经在运行 (PID ${_pid})"
+            return 0
+        fi
+        rm -f "${pidfile}"
+    fi
+
+    # 3b. 防呆：tun 设备残留处理。无地址且未 UP 的是上次异常退出留下的僵尸设备，
+    #     直接销毁；UP/RUNNING 或带地址的说明有活进程占用（如生产旧 hev 栈），
+    #     拒绝启动并提示迁移步骤，防止误把外部设备当作自己的就绪状态。
+    if ifconfig "${tun_dev}" >/dev/null 2>&1; then
+        # awk 必须 print 判定值：$() 只捕获 stdout，退出码不会赋给变量
+        _zombie="$(ifconfig "${tun_dev}" | awk '/^[[:space:]]*inet[[:space:]]/{found=1} /UP,/{up=1} END{print (found || up) ? 1 : 0}')"
+        if [ "${_zombie}" = "0" ]; then
+            echo "提示：发现残留的空 ${tun_dev} 僵尸设备，自动销毁后继续。"
+            ifconfig "${tun_dev}" destroy 2>/dev/null || true
+        else
+            echo "错误：${tun_dev} 处于活跃状态但 ${name} 未在运行（疑似外部 hev/残留进程占用）。" >&2
+            echo "  请先停用占用 ${tun_dev} 的外部服务（迁移手册：停 xray_proxy/hev_socks5_tunnel 等）后重试。" >&2
+            ifconfig "${tun_dev}" | head -3 >&2
+            return 1
+        fi
+    fi
+
+    # 4. 用 daemon 启动 hev-socks5-tunnel（配置是位置参数；script(1) 提供 pty；-p 记录子进程 pid）
+    echo "正在启动 ${name}..."
+    /usr/sbin/daemon -p "${pidfile}" -f -t "${name}" "${script_bin}" -q /dev/null "${bin}" "${conf}"
+
+    # 5. 轮询 tun 接口最长 10 秒
+    _wait=0
+    while [ "${_wait}" -lt 10 ]; do
+        if ifconfig "${tun_dev}" >/dev/null 2>&1; then
+            echo "${name} 启动成功，${tun_dev} 已就绪"
+            return 0
+        fi
+        sleep 1
+        _wait=$((_wait + 1))
+    done
+
+    # 6. 超时未就绪，清理进程（script 及其 hev 子进程，均按 pid 精确处理）并返回错误
+    echo "错误：等待 ${tun_dev} 超时 (10s)，终止进程"
+    if [ -f "${pidfile}" ]; then
+        _dead_pid="$(cat "${pidfile}" 2>/dev/null || true)"
+        if [ -n "${_dead_pid}" ] && kill -0 "${_dead_pid}" 2>/dev/null; then
+            _kids="$(pgrep -P "${_dead_pid}" 2>/dev/null || true)"
+            kill -KILL "${_dead_pid}" 2>/dev/null || true
+            for _k in ${_kids}; do
+                kill -KILL "${_k}" 2>/dev/null || true
+            done
+        fi
+        rm -f "${pidfile}"
+    fi
+    return 1
+}
+
+mihomo_hev_stop()
+{
+    echo "正在停止 ${name}..."
+    if [ ! -f "${pidfile}" ]; then
+        echo "${name} 未运行 (无 pidfile)"
+        return 0
+    fi
+
+    _pid="$(cat "${pidfile}" 2>/dev/null || true)"
+    if [ -z "${_pid}" ] || ! kill -0 "${_pid}" 2>/dev/null; then
+        echo "${name} 进程已不存在"
+        rm -f "${pidfile}"
+        return 0
+    fi
+
+    # 按 pid 发送 SIGTERM（script 进程），严禁全局 pkill；
+    # 先记录其子进程（hev 本体），script 退出后子进程若仍存活再按 pid 补刀
+    _kids="$(pgrep -P "${_pid}" 2>/dev/null || true)"
+    kill -TERM "${_pid}" 2>/dev/null || true
+
+    # 每秒检查最多 5 秒
+    _wait=0
+    while [ "${_wait}" -lt 5 ]; do
+        if ! kill -0 "${_pid}" 2>/dev/null; then
+            break
+        fi
+        sleep 1
+        _wait=$((_wait + 1))
+    done
+
+    # 仍存活则强杀
+    if kill -0 "${_pid}" 2>/dev/null; then
+        kill -KILL "${_pid}" 2>/dev/null || true
+        sleep 1
+    fi
+
+    # script 已死但其 hev 子进程仍存活的兜底（pty 关闭通常会让 hev 自行退出）
+    for _k in ${_kids}; do
+        if kill -0 "${_k}" 2>/dev/null; then
+            kill -TERM "${_k}" 2>/dev/null || true
+        fi
+    done
+    sleep 1
+    for _k in ${_kids}; do
+        if kill -0 "${_k}" 2>/dev/null; then
+            kill -KILL "${_k}" 2>/dev/null || true
+        fi
+    done
+
+    rm -f "${pidfile}"
+    echo "${name} 已停止"
+    return 0
+}
+
+mihomo_hev_status()
+{
+    if [ -f "${pidfile}" ]; then
+        _pid="$(cat "${pidfile}" 2>/dev/null || true)"
+        if [ -n "${_pid}" ] && kill -0 "${_pid}" 2>/dev/null; then
+            echo "${name} 正在运行 (PID ${_pid})"
+            return 0
+        fi
+    fi
+    echo "${name} 未运行"
+    return 1
+}
+
+mihomo_hev_healthcheck()
+{
+    _status_pid="-"
+    _tun_state="DOWN"
+
+    if [ -f "${pidfile}" ]; then
+        _pid="$(cat "${pidfile}" 2>/dev/null || true)"
+        if [ -n "${_pid}" ] && kill -0 "${_pid}" 2>/dev/null; then
+            _status_pid="${_pid}"
+        fi
+    fi
+
+    if ifconfig "${tun_dev}" >/dev/null 2>&1; then
+        _tun_state="UP"
+    fi
+
+    printf "PID: %s\n" "${_status_pid}"
+    printf "TUN (%s): %s\n" "${tun_dev}" "${_tun_state}"
+
+    if [ "${_status_pid}" != "-" ] && [ "${_tun_state}" = "UP" ]; then
+        return 0
+    fi
+    return 1
+}
+
+load_rc_config "${name}"
+run_rc_command "$1"

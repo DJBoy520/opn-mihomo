@@ -1,0 +1,10 @@
+<menu>
+    <Services>
+        <Mihomo VisibleName="Mihomo" cssClass="fa fa-globe fa-fw">
+            <General VisibleName="常规设置" order="10" url="/ui/mihomo/"/>
+            <Rules VisibleName="分流规则" order="20" url="/ui/mihomo/rules"/>
+            <Proxies VisibleName="策略组" order="30" url="/ui/mihomo/proxies"/>
+            <Logs VisibleName="实时日志" order="50" url="/ui/mihomo/logs"/>
+        </Mihomo>
+    </Services>
+</menu>

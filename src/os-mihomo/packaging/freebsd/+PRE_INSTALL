@@ -1,0 +1,66 @@
+#!/bin/sh
+
+# os-mihomo pre-install (upgrade protection)
+# 本脚本整体内嵌进 +MANIFEST 由 pkg 执行：禁止反斜杠续行、禁止一切百分号字符。
+# 顺序（先切断传输层，再停核心，最后快照）：transport-disable → 停 mihomo（先
+# SIGTERM 优雅等待，超时才 SIGKILL，防 bbolt 脏状态）→ 快照用户数据 → 清 pid/状态文件。
+
+TRANSPORT_MGR=/usr/local/opnsense/scripts/OPNsense/Mihomo/transport_manager.sh
+CONF_DIR=/usr/local/etc/mihomo
+SNAP_DIR=/var/db/os-mihomo/pre-upgrade
+PID_FILE=/var/run/mihomo.pid
+
+echo "===> os-mihomo pre-install: protecting user configuration"
+
+# 1. Transport layer first (flush PF anchor, stop hev) — idempotent, best effort
+# 必须用 flush 而非 disable：disable 会把模式意图写成 proxy，升级中断/健康门禁失败
+# 后 transparent 被永久静默降级且 recover 永不补挂；flush 只拆 anchor 与 hev。
+if [ -x "$TRANSPORT_MGR" ]; then
+    "$TRANSPORT_MGR" flush >/dev/null 2>&1 || true
+fi
+
+# 2. Stop service manager instance (graceful)
+if [ -x /usr/local/opnsense/scripts/OPNsense/Mihomo/service_manager.sh ]; then
+    /usr/local/opnsense/scripts/OPNsense/Mihomo/service_manager.sh stop >/dev/null 2>&1 || true
+fi
+service mihomo stop >/dev/null 2>&1 || true
+pkill -TERM -f '^/usr/local/bin/mihomo' 2>/dev/null || true
+
+# 3. Wait for graceful exit (up to 5s), then SIGKILL
+_i=0
+while [ "$_i" -lt 5 ]; do
+    pgrep -f '^/usr/local/bin/mihomo' >/dev/null 2>&1 || break
+    sleep 1
+    _i=$((_i + 1))
+done
+if pgrep -f '^/usr/local/bin/mihomo' >/dev/null 2>&1; then
+    pkill -KILL -f '^/usr/local/bin/mihomo' 2>/dev/null || true
+    sleep 1
+fi
+
+# 4. Refuse to continue if the process survives SIGKILL (bbolt lock race guard)
+if pgrep -f '^/usr/local/bin/mihomo' >/dev/null 2>&1; then
+    echo "ERROR: mihomo process could not be terminated, aborting install to avoid cache.db corruption." >&2
+    exit 1
+fi
+
+# 5. Snapshot user data (only files that exist; 0600)
+mkdir -p "$SNAP_DIR"
+chmod 0700 "$SNAP_DIR" 2>/dev/null || true
+for _f in config.yaml sub/env custom-rules.txt secret.key sub/template_config.yaml; do
+    if [ -f "$CONF_DIR/$_f" ]; then
+        _d="$SNAP_DIR/$(dirname "$_f")"
+        mkdir -p "$_d" 2>/dev/null || true
+        # 快照失败等于用户配置丢失，必须中止安装而不是静默继续
+        if ! cp -f "$CONF_DIR/$_f" "$SNAP_DIR/$_f"; then
+            echo "ERROR: failed to snapshot $CONF_DIR/$_f to $SNAP_DIR/$_f, aborting install." >&2
+            exit 1
+        fi
+        chmod 0600 "$SNAP_DIR/$_f" 2>/dev/null || true
+    fi
+done
+
+# 6. Remove stale pid/state files so the new install cannot misjudge a live instance
+rm -f "$PID_FILE" /var/run/mihomo_state.json /var/run/mihomo_hev.pid 2>/dev/null || true
+
+echo "===> os-mihomo pre-install done (snapshot in $SNAP_DIR)"

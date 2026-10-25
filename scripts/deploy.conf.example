@@ -1,0 +1,16 @@
+# 部署与测试环境配置模板
+# 复制本文件到 .private/deploy.conf 并填写实际环境参数：
+#   cp scripts/deploy.conf.example .private/deploy.conf
+# 注意：.private/ 目录已被 git 忽略，真实环境配置文件绝对严禁提交入库！
+
+# 测试虚拟机配置（用于构建元数据与安装测试）
+VM_HOST=192.0.2.159
+VM_USER=root
+
+# 生产防火墙机配置（改动需谨慎，须审批）
+PROD_HOST=192.0.2.2
+PROD_PORT=8443
+PROD_USER=root
+
+# 发布目标 ABI 架构
+REPO_ABI=FreeBSD:15:amd64

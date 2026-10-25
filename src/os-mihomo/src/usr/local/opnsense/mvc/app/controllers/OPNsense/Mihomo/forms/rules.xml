@@ -1,0 +1,8 @@
+<form>
+    <field>
+        <id>mihomo.customRules.content</id>
+        <label>自定义规则</label>
+        <type>textarea</type>
+        <help>每行一条规则：类型,匹配值,目标策略（对于 IP-CIDR、IP-CIDR6 与 GEOIP，可选附加 ,no-resolve）。支持类型：DOMAIN、DOMAIN-SUFFIX、DOMAIN-KEYWORD、IP-CIDR、IP-CIDR6、GEOIP、GEOSITE、DST-PORT。目标策略：DIRECT、REJECT、REJECT-DROP 或当前生效配置中的策略组名称。限制：200 行 / 32768 字节。</help>
+    </field>
+</form>

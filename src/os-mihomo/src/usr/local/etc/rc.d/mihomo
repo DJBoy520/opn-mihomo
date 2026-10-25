@@ -1,0 +1,91 @@
+#!/bin/sh
+
+# PROVIDE: mihomo
+# REQUIRE: NETWORKING
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="mihomo"
+rcvar="mihomo_enable"
+desc="mihomo service"
+
+pidfile="/var/run/${name}.pid"
+logfile="/var/log/${name}.log"
+procname="/usr/local/bin/mihomo"
+required_files="/usr/local/bin/mihomo"
+
+manager="/usr/local/opnsense/scripts/OPNsense/Mihomo/service_manager.sh"
+
+start_cmd="mihomo_start"
+stop_cmd="mihomo_stop"
+restart_cmd="mihomo_restart"
+reload_cmd="mihomo_reload"
+status_cmd="mihomo_status"
+extra_commands="reload healthcheck"
+healthcheck_cmd="mihomo_healthcheck"
+
+: ${mihomo_enable:="NO"}
+
+mihomo_start()
+{
+    if [ -x "${manager}" ]; then
+        "${manager}" start
+    else
+        echo "service_manager.sh not found: ${manager}"
+        return 1
+    fi
+}
+
+mihomo_stop()
+{
+    if [ -x "${manager}" ]; then
+        "${manager}" stop
+    else
+        echo "service_manager.sh not found: ${manager}"
+        return 1
+    fi
+}
+
+mihomo_restart()
+{
+    if [ -x "${manager}" ]; then
+        "${manager}" restart
+    else
+        echo "service_manager.sh not found: ${manager}"
+        return 1
+    fi
+}
+
+mihomo_reload()
+{
+    if [ -x "${manager}" ]; then
+        "${manager}" reload
+    else
+        echo "service_manager.sh not found: ${manager}"
+        return 1
+    fi
+}
+
+mihomo_status()
+{
+    if [ -x "${manager}" ]; then
+        "${manager}" status
+    else
+        echo "service_manager.sh not found: ${manager}"
+        return 1
+    fi
+}
+
+mihomo_healthcheck()
+{
+    if [ -x "${manager}" ]; then
+        "${manager}" healthcheck
+    else
+        echo "service_manager.sh not found: ${manager}"
+        return 1
+    fi
+}
+
+load_rc_config "${name}"
+run_rc_command "$1"

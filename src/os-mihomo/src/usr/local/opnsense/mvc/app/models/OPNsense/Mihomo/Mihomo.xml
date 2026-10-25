@@ -1,0 +1,89 @@
+<model>
+    <mount>//OPNsense/mihomo</mount>
+    <version>1.0.1</version>
+    <description>Mihomo proxy configuration</description>
+    <items>
+        <general>
+            <enabled type="BooleanField">
+                <default>0</default>
+                <Required>Y</Required>
+            </enabled>
+            <log_level type="OptionField">
+                <default>info</default>
+                <Required>Y</Required>
+                <OptionValues>
+                    <debug>调试</debug>
+                    <info>信息</info>
+                    <warning>警告</warning>
+                    <error>错误</error>
+                    <silent>静默</silent>
+                </OptionValues>
+            </log_level>
+            <api_bind type="TextField">
+                <default>127.0.0.1</default>
+                <Required>Y</Required>
+                <Mask>/^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/</Mask>
+                <ValidationMessage>请输入合法的 IPv4 地址（如 127.0.0.1、0.0.0.0 或本机接口 IP）</ValidationMessage>
+            </api_bind>
+            <api_port type="IntegerField">
+                <default>9090</default>
+                <Required>Y</Required>
+                <MinimumValue>1024</MinimumValue>
+                <MaximumValue>65535</MaximumValue>
+                <ValidationMessage>API 端口必须在 1024 到 65535 之间</ValidationMessage>
+            </api_port>
+            <!-- proxy=仅本机 socks 7890/7891；transparent=hev tun0 + PF anchor 接管 LAN 流量 -->
+            <transport_mode type="OptionField">
+                <default>proxy</default>
+                <Required>Y</Required>
+                <OptionValues>
+                    <proxy>仅代理模式</proxy>
+                    <transparent>透明代理模式</transparent>
+                </OptionValues>
+            </transport_mode>
+            <lan_expose type="BooleanField">
+                <default>0</default>
+                <Required>Y</Required>
+            </lan_expose>
+            <!-- 校验由 GeneralController 落盘 panel-state.env 时执行，不合法回落 mihomo；
+                 不设 Required/mask，避免空值或非法值在 setNodes 阶段被直接拒绝 -->
+            <lan_user type="TextField">
+                <default>mihomo</default>
+                <ValidationMessage>仅允许 1-32 位字母、数字及 . _ @ - 字符。</ValidationMessage>
+            </lan_user>
+        </general>
+        <subscription>
+            <!-- 订阅地址单一真源；面板不显示明文，仅在 GET 时返回 scheme://host/*** -->
+            <url type="TextField">
+                <default></default>
+            </url>
+            <auto_update type="BooleanField">
+                <default>0</default>
+                <Required>Y</Required>
+            </auto_update>
+            <auto_interval type="OptionField">
+                <default>o24h</default>
+                <Required>Y</Required>
+                <OptionValues>
+                    <o6h>每 6 小时</o6h>
+                    <o12h>每 12 小时</o12h>
+                    <o24h>每 24 小时</o24h>
+                </OptionValues>
+            </auto_interval>
+            <strategy type="OptionField">
+                <default>subscription</default>
+                <Required>Y</Required>
+                <OptionValues>
+                    <subscription>订阅自带策略组与规则</subscription>
+                    <template>插件内置模板</template>
+                </OptionValues>
+            </strategy>
+        </subscription>
+        <customRules>
+            <!-- 逐行校验与上限（200 行 / 32KB）由 custom_rules_validate.php 负责 -->
+            <content type="TextField">
+                <default></default>
+            </content>
+        </customRules>
+    </items>
+</model>

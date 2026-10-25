@@ -1,0 +1,23 @@
+#!/bin/sh
+# AdGuardHome rc.d 启动脚本（可选加固：当前 AGH 无自启项，断电重启后 :53 无服务）
+# 安装方式（经审计确认后执行）：
+#   scp scripts/opnsense/adguardhome.rc root@<router>:/usr/local/etc/rc.d/adguardhome
+#   chmod 755 /usr/local/etc/rc.d/adguardhome
+#   sysrc adguardhome_enable=YES && service adguardhome start
+#   注意：若 AGH 已在运行（手动启动的旧实例），先停掉旧实例再 service 启动，避免端口冲突。
+#
+# PROVIDE: adguardhome
+# REQUIRE: NETWORKING
+# BEFORE:  LOGIN
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="adguardhome"
+rcvar="adguardhome_enable"
+command="/usr/sbin/daemon"
+command_args="-f -p /var/run/adguardhome.pid /usr/local/AdGuardHome/AdGuardHome -w /usr/local/AdGuardHome --no-banner"
+pidfile="/var/run/adguardhome.pid"
+
+load_rc_config "$name"
+run_rc_command "$1"
