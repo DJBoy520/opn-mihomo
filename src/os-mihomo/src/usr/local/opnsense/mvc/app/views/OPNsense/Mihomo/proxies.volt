@@ -29,20 +29,23 @@
         </div>
 
         <div class="mihomo-card-body">
-            <!-- 状态信息条 -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 13px; color: #666666;">{{ lang._('API 状态') }}：</span>
-                    <span id="proxies_api_status" class="label label-default" style="font-size: 12px; padding: 3px 8px;">
-                        <i class="fa fa-spinner fa-spin"></i> {{ lang._('连接中') }}
-                    </span>
-                    <span style="font-size: 13px; color: #666666; margin-left: 10px;">{{ lang._('内核模式') }}：</span>
-                    <span id="proxies_core_mode" class="label label-info" style="font-size: 12px; padding: 3px 8px;">-</span>
-                </div>
-                <div id="proxies_toast_area"></div>
+            <!-- 状态信息条与工具栏 -->
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;">
+                <input type="text" class="form-control" id="node_search_input" placeholder="{{ lang._('搜索策略组或节点...') }}" style="max-width: 280px; height: 32px;">
+                <button class="btn btn-default btn-xs" id="btn_expand_all" type="button">{{ lang._('全部展开') }}</button>
+                <span class="text-muted" style="font-size: 12px;" id="proxies_count_badge">-</span>
+                <span class="text-muted" style="font-size: 12px;">
+                    {{ lang._('API 状态') }}：<span id="proxies_api_status" class="label label-default">{{ lang._('连接中') }}</span>
+                    · {{ lang._('内核模式') }}：<span id="proxies_core_mode" class="label label-info">-</span>
+                </span>
+                <span class="text-muted" style="font-size: 12px; margin-left: auto;">
+                    {{ lang._('点成员卡片即时切换，仅当前运行生效，重启后回到默认。') }}
+                </span>
             </div>
 
-            <!-- API 不可达错误大横幅 -->
+            <div id="proxies_toast_area" style="margin-bottom: 10px;"></div>
+
+            <!-- API 不可达错误横幅 -->
             <div id="proxies_error_banner" class="alert alert-warning" style="display: none;">
                 <i class="fa fa-exclamation-triangle"></i>
                 <span id="proxies_error_msg">{{ lang._('mihomo API 不可达（服务未运行或密钥未生效）') }}</span>
@@ -51,55 +54,9 @@
                 </button>
             </div>
 
-            <!-- 主内容区域：左窄右宽，右侧节点多列铺满 -->
-            <div class="row mihomo-proxy-layout" id="proxies_main_content">
-                <!-- 左栏：组列表 -->
-                <div class="col-xs-12 col-md-3" style="margin-bottom: 15px;">
-                    <ul class="mihomo-group-list" id="group_list_container">
-                        <li class="mihomo-empty">{{ lang._('暂无策略组数据') }}</li>
-                    </ul>
-                </div>
-
-                <!-- 右栏：节点行列表与分页 -->
-                <div class="col-xs-12 col-md-9">
-                    <!-- 当前组概览与操作栏 -->
-                    <div style="background-color: #fafafa; border: 1px solid #e3e3e3; border-radius: 6px; padding: 12px 16px; margin-bottom: 15px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                            <div>
-                                <h3 id="current_group_title" style="margin: 0; font-size: 16px; font-weight: 600; color: #333333; display: inline-block;">-</h3>
-                                <span id="current_group_type" class="label label-primary" style="margin-left: 8px; font-size: 11px;">-</span>
-                            </div>
-                            <div style="font-size: 13px; color: #666666;">
-                                <span>{{ lang._('当前选择') }}：</span>
-                                <strong id="current_group_now" class="text-primary">-</strong>
-                            </div>
-                        </div>
-                        <div id="current_group_note" class="text-muted" style="margin-top: 6px; font-size: 12px; display: none;"></div>
-                    </div>
-
-                    <!-- 节点搜索与分页控制 -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-                        <div style="max-width: 260px; width: 100%;">
-                            <input type="text" class="form-control input-sm" id="node_search_input" placeholder="{{ lang._('在当前组搜索节点...') }}">
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span id="proxies_page_info" style="font-size: 12px; color: #666666;">-</span>
-                            <div class="btn-group">
-                                <button class="btn btn-default btn-xs" id="proxies_prev" type="button" disabled title="{{ lang._('上一页') }}">
-                                    <i class="fa fa-chevron-left"></i>
-                                </button>
-                                <button class="btn btn-default btn-xs" id="proxies_next" type="button" disabled title="{{ lang._('下一页') }}">
-                                    <i class="fa fa-chevron-right"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 节点紧凑行列表容器 -->
-                    <div class="mihomo-node-list" id="node_grid_container">
-                        <div class="mihomo-empty" style="grid-column: 1 / -1;">{{ lang._('请选择左侧策略组查看节点') }}</div>
-                    </div>
-                </div>
+            <!-- 策略组纵向卡片列表容器 -->
+            <div class="mh-glist" id="proxies_glist_container">
+                <div class="mihomo-empty">{{ lang._('暂无策略组数据') }}</div>
             </div>
         </div>
     </div>
@@ -109,14 +66,11 @@
 $(document).ready(function () {
     var inFlight = false;
     var requestSeq = 0;
-    var activeGroupName = '';
-    var activeGroupSelectable = false;
     var groupsCache = [];
-    var nodeSearchQuery = '';
-    var nodeOffset = 0;
-    var nodeLimit = 100;
-    var nodeTotal = 0;
-    var nodeInFlight = false;
+    var groupIndexMap = {};
+    var OPEN = {};
+    var initializedFirstOpen = false;
+    var searchQuery = '';
     var isSwitchingNode = false;
     var pollTimer = null;
 
@@ -133,17 +87,296 @@ $(document).ready(function () {
         }, 4000);
     }
 
-    function formatDelay(delay) {
-        if (!delay || delay <= 0) {
-            return { text: '-', className: '' };
+    function dlClass(d) {
+        if (typeof d !== 'number' || d <= 0) {
+            return 'none';
         }
-        var cls = 'is-good';
-        if (delay > 400) {
-            cls = 'is-bad';
-        } else if (delay > 180) {
-            cls = 'is-warn';
+        if (d < 150) {
+            return 'good';
         }
-        return { text: delay + ' ms', className: cls };
+        if (d < 400) {
+            return 'mid';
+        }
+        return 'bad';
+    }
+
+    function isBuiltin(g) {
+        return !g || g.type === 'Direct' || g.type === 'Reject';
+    }
+
+    function buildRelations(groups) {
+        groupIndexMap = {};
+        $.each(groups, function (i, g) {
+            groupIndexMap[g.name] = g;
+        });
+
+        $.each(groups, function (i, g) {
+            g._subs = [];
+            g._leaves = [];
+            g._parents = [];
+            var all = Array.isArray(g.all) ? g.all : [];
+            $.each(all, function (j, memberName) {
+                if (groupIndexMap[memberName]) {
+                    g._subs.push(memberName);
+                } else {
+                    g._leaves.push(memberName);
+                }
+            });
+        });
+
+        $.each(groups, function (i, g) {
+            $.each(g._subs, function (j, subName) {
+                if (groupIndexMap[subName]) {
+                    groupIndexMap[subName]._parents.push(g.name);
+                }
+            });
+        });
+
+        $.each(groups, function (i, g) {
+            if (typeof g.delay === 'number') {
+                g._bestDelay = g.delay;
+            } else {
+                var bestSubDelay = null;
+                if (g._subs.length > 0 && g.now && groupIndexMap[g.now]) {
+                    var subG = groupIndexMap[g.now];
+                    if (typeof subG.delay === 'number') {
+                        bestSubDelay = subG.delay;
+                    }
+                }
+                g._bestDelay = bestSubDelay;
+            }
+        });
+    }
+
+    function isGroupHit(g, q) {
+        if (!q) {
+            return true;
+        }
+        if (g.name.toLowerCase().indexOf(q) > -1) {
+            return true;
+        }
+        var all = Array.isArray(g.all) ? g.all : [];
+        for (var i = 0; i < all.length; i++) {
+            if (String(all[i]).toLowerCase().indexOf(q) > -1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function renderGroupCard(g) {
+        var isOpen = !!OPEN[g.name];
+        var isSel = (g.type === 'Selector');
+        var subs = g._subs || [];
+        var leaves = g._leaves || [];
+        var parents = g._parents || [];
+        var totalCount = g.count || (Array.isArray(g.all) ? g.all.length : 0);
+
+        var $card = $('<div class="mh-gcard"></div>').attr('data-n', g.name);
+        if (isOpen) {
+            $card.addClass('is-open');
+        }
+
+        // 卡片头
+        var $head = $('<div class="mh-ghead" tabindex="0"></div>');
+        var $caret = $('<span class="g-caret"></span>').append($('<i class="fa"></i>').addClass(isOpen ? 'fa-chevron-down' : 'fa-chevron-right'));
+        var $name = $('<span class="g-name"></span>').text(g.name).attr('title', g.name);
+        var $type = $('<span class="gc-type"></span>').text(g.type || 'Unknown');
+        var $cur = $('<span class="g-cur"></span>').text('{{ lang._("当前") }} ').append($('<b></b>').text(g.now || '-')).attr('title', g.now || '-');
+        var $spacer = $('<span class="g-spacer"></span>');
+
+        $head.append($caret).append($name).append($type).append($cur).append($spacer);
+
+        if (totalCount > 0) {
+            if (subs.length > 0) {
+                $head.append($('<span class="g-stat"></span>').text(subs.length + ' {{ lang._("子策略") }}'));
+            }
+            if (leaves.length > 0) {
+                $head.append($('<span class="g-stat"></span>').text(leaves.length + ' {{ lang._("节点") }}'));
+            }
+            if (typeof g._bestDelay === 'number') {
+                var $best = $('<span class="g-stat"></span>').text('{{ lang._("最优") }} ');
+                $best.append($('<b></b>').addClass(dlClass(g._bestDelay)).text(g._bestDelay + 'ms'));
+                $head.append($best);
+            }
+            if (typeof g._bestDelay === 'number') {
+                var $bars = $('<span class="gc-bars"></span>');
+                var bClass = dlClass(g._bestDelay);
+                $bars.append($('<i style="height: 6px;"></i>').addClass(bClass === 'mid' ? 'mid' : (bClass === 'bad' ? 'bad' : '')));
+                $bars.append($('<i style="height: 10px;"></i>').addClass(bClass === 'mid' ? 'mid' : (bClass === 'bad' ? 'bad' : '')));
+                $bars.append($('<i style="height: 14px;"></i>').addClass(bClass === 'mid' ? 'mid' : (bClass === 'bad' ? 'bad' : '')));
+                $head.append($bars);
+            }
+        } else {
+            $head.append($('<span class="g-stat"></span>').text('{{ lang._("内置出口") }}'));
+        }
+
+        if (parents.length > 0) {
+            var $ref = $('<span class="g-ref"></span>').append($('<span class="lb">{{ lang._("被引用") }}</span>'));
+            var showP = parents.slice(0, 2);
+            $.each(showP, function (idx, pName) {
+                var $up = $('<span class="up" data-jump="1"></span>').text(pName).attr('data-target-group', pName);
+                $ref.append($up);
+            });
+            if (parents.length > 2) {
+                $ref.append($('<span class="more"></span>').text('+' + (parents.length - 2)));
+            }
+            $head.append($ref);
+        }
+
+        var $cntBadge = $('<span class="cnt-badge"></span>').text(totalCount);
+        $head.append($cntBadge);
+        $card.append($head);
+
+        // 卡片展开体
+        if (isOpen) {
+            var $body = $('<div class="mh-gbody"></div>');
+
+            // 1. 子策略
+            if (subs.length > 0) {
+                $body.append($('<div class="gc-sub-h"></div>').text('{{ lang._("子策略") }} (' + subs.length + ')'));
+                var $subGrid = $('<div class="mh-mb-grid"></div>');
+                $.each(subs, function (idx, subName) {
+                    var subG = groupIndexMap[subName] || {};
+                    var isCur = (subName === g.now);
+                    var $mb = $('<div class="mh-mb is-group"></div>').attr('data-jump', '1').attr('data-target-group', subName);
+                    if (isCur) {
+                        $mb.addClass('is-current');
+                    }
+                    var $mbBody = $('<div class="mb-body"></div>');
+                    $mbBody.append($('<div class="mb-nm"></div>').text(subName).attr('title', subName));
+
+                    var $mbSub = $('<div class="mb-sub"></div>');
+                    if (subG.now) {
+                        $mbSub.append($('<span class="mb-cur"></span>').text(subG.now).attr('title', subG.now));
+                    }
+                    $mbSub.append($('<span class="ty"></span>').text(subG.type || 'Group'));
+                    if (subG.udpr) {
+                        $mbSub.append($('<span class="ty">UDP</span>'));
+                    }
+                    var subCount = subG.count || (Array.isArray(subG.all) ? subG.all.length : 0);
+                    if (subCount > 0) {
+                        $mbSub.append($('<span class="cnt"></span>').text(subCount + ' {{ lang._("成员") }}'));
+                    }
+                    $mbBody.append($mbSub);
+
+                    var $mbR = $('<div class="mb-r"></div>');
+                    if (isCur) {
+                        $mbR.addClass('ok').append($('<i class="fa fa-check"></i>'));
+                    } else if (typeof subG.delay === 'number') {
+                        $mbR.addClass(dlClass(subG.delay)).text(subG.delay + 'ms');
+                    } else {
+                        $mbR.addClass('none').text('—');
+                    }
+
+                    $mb.append($mbBody).append($mbR);
+                    $subGrid.append($mb);
+                });
+                $body.append($subGrid);
+            }
+
+            // 2. 实际节点
+            if (leaves.length > 0) {
+                var maxRender = 200;
+                var displayLeaves = leaves;
+                var isTruncated = false;
+                if (!searchQuery && leaves.length > maxRender) {
+                    displayLeaves = leaves.slice(0, maxRender);
+                    isTruncated = true;
+                }
+
+                var $leafH = $('<div class="gc-sub-h"></div>').text('{{ lang._("实际节点") }} (' + leaves.length + ')');
+                $body.append($leafH);
+
+                var $nodeGrid = $('<div class="mh-mb-grid"></div>');
+                $.each(displayLeaves, function (idx, nodeName) {
+                    var isCur = (nodeName === g.now);
+                    var $mb = $('<div class="mh-mb"></div>').attr('data-sel', '1').attr('data-node-name', nodeName).attr('data-group-name', g.name);
+                    if (isCur) {
+                        $mb.addClass('is-current');
+                    }
+                    var $mbBody = $('<div class="mb-body"></div>');
+                    $mbBody.append($('<div class="mb-nm"></div>').text(nodeName).attr('title', nodeName));
+
+                    var $mbSub = $('<div class="mb-sub"></div>');
+                    $mbSub.append($('<span class="ty">Node</span>'));
+                    $mbBody.append($mbSub);
+
+                    var $mbR = $('<div class="mb-r"></div>');
+                    if (isCur) {
+                        $mbR.addClass('ok').append($('<i class="fa fa-check"></i>'));
+                    } else {
+                        $mbR.addClass('none').text('—');
+                    }
+
+                    $mb.append($mbBody).append($mbR);
+                    $nodeGrid.append($mb);
+                });
+                $body.append($nodeGrid);
+
+                if (isTruncated) {
+                    $body.append($('<div class="text-muted" style="font-size: 12px; margin-top: 6px;"></div>').text('{{ lang._("仅显示前 200 项，请用搜索缩小范围") }}'));
+                }
+            }
+
+            if (totalCount === 0) {
+                $body.append($('<div class="gc-empty"></div>').text('{{ lang._("mihomo 内置出口，无成员，被引用时直接生效。") }}'));
+            }
+
+            $card.append($body);
+        }
+
+        return $card;
+    }
+
+    function renderAllCards() {
+        var $container = $('#proxies_glist_container');
+        var savedScrollY = window.scrollY;
+
+        var q = searchQuery.toLowerCase();
+        var matchedGroups = [];
+        $.each(groupsCache, function (i, g) {
+            if (isGroupHit(g, q)) {
+                matchedGroups.push(g);
+                if (q) {
+                    OPEN[g.name] = true;
+                }
+            }
+        });
+
+        $container.empty();
+
+        if (matchedGroups.length === 0) {
+            $container.append($('<div class="gc-empty" style="padding: 16px;"></div>').text('{{ lang._("没有匹配的策略组。") }}'));
+        } else {
+            $.each(matchedGroups, function (i, g) {
+                $container.append(renderGroupCard(g));
+            });
+        }
+
+        var total = groupsCache.length;
+        var shown = matchedGroups.length;
+        $('#proxies_count_badge').text('{{ lang._("显示") }} ' + shown + ' / ' + total + ' {{ lang._("个") }}');
+
+        var allExpanded = (total > 0);
+        $.each(groupsCache, function (i, g) {
+            if (!OPEN[g.name]) {
+                allExpanded = false;
+                return false;
+            }
+        });
+        $('#btn_expand_all').text(allExpanded ? '{{ lang._("全部收起") }}' : '{{ lang._("全部展开") }}');
+
+        window.scrollTo(0, savedScrollY);
+    }
+
+    function jumpToGroup(groupName) {
+        OPEN[groupName] = true;
+        renderAllCards();
+        var $el = $('#proxies_glist_container .mh-gcard[data-n="' + CSS.escape(groupName) + '"]');
+        if ($el.length > 0) {
+            $el[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     }
 
     function loadGroups(isManual) {
@@ -163,196 +396,34 @@ $(document).ready(function () {
             inFlight = false;
 
             if (!data || data.status !== 'ok' || !data.reachable) {
-                $('#proxies_api_status').removeClass('label-success').addClass('label-danger').text('不可达');
+                $('#proxies_api_status').removeClass('label-success').addClass('label-danger').text('{{ lang._("不可达") }}');
                 $('#proxies_error_banner').show();
-                var note = (data && data.note) ? data.note : 'mihomo API 不可达（服务未运行或密钥未生效）';
+                var note = (data && data.note) ? data.note : '{{ lang._("mihomo API 不可达（服务未运行或密钥未生效）") }}';
                 $('#proxies_error_msg').text(note);
                 if (groupsCache.length === 0) {
-                    $('#group_list_container').empty().append(
-                        $('<li class="mihomo-empty"></li>').text('无法加载策略组数据')
+                    $('#proxies_glist_container').empty().append(
+                        $('<div class="mihomo-empty"></div>').text('{{ lang._("无法加载策略组数据") }}')
                     );
                 }
                 return;
             }
 
             $('#proxies_error_banner').hide();
-            $('#proxies_api_status').removeClass('label-default label-danger').addClass('label-success').text('正常');
+            $('#proxies_api_status').removeClass('label-default label-danger').addClass('label-success').text('{{ lang._("正常") }}');
             if (data.core_mode) {
-                var coreModeNames = { 'rule': '规则分流', 'global': '全局代理', 'direct': '直连' };
+                var coreModeNames = { 'rule': '{{ lang._("规则分流") }}', 'global': '{{ lang._("全局代理") }}', 'direct': '{{ lang._("直连") }}' };
                 $('#proxies_core_mode').text(coreModeNames[data.core_mode] || data.core_mode);
             }
 
             groupsCache = Array.isArray(data.groups) ? data.groups : [];
-            renderGroupList();
+            buildRelations(groupsCache);
 
-            // 若当前未选中组或选中组已不存在，默认选中第一项
-            if (groupsCache.length > 0) {
-                var found = false;
-                for (var i = 0; i < groupsCache.length; i++) {
-                    if (groupsCache[i].name === activeGroupName) {
-                        found = true;
-                        // 同步当前最新 now 值
-                        $('#current_group_now').text(groupsCache[i].now || '-');
-                        break;
-                    }
-                }
-                if (!found) {
-                    selectGroup(groupsCache[0].name, groupsCache[0].type, groupsCache[0].selectable, groupsCache[0].now);
-                }
-            } else {
-                $('#group_list_container').empty().append(
-                    $('<li class="mihomo-empty"></li>').text('未发现任何策略组')
-                );
-                $('#node_grid_container').empty().append(
-                    $('<div class="mihomo-empty" style="grid-column: 1 / -1;"></div>').text('暂无可用策略组')
-                );
-            }
-        });
-    }
-
-    function renderGroupList() {
-        var $list = $('#group_list_container');
-        $list.empty();
-
-        var renderedCount = 0;
-        $.each(groupsCache, function (idx, grp) {
-            renderedCount++;
-
-            var $item = $('<li class="mihomo-group-item"></li>');
-            if (grp.name === activeGroupName) {
-                $item.addClass('is-active');
+            if (!initializedFirstOpen && groupsCache.length > 0) {
+                OPEN[groupsCache[0].name] = true;
+                initializedFirstOpen = true;
             }
 
-            var $head = $('<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px;"></div>');
-            var $title = $('<span style="font-size: 14px; font-weight: 600; color: #333333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; min-width: 0;"></span>').text(grp.name);
-            var $badge = $('<span class="label label-default" style="font-size: 10px; padding: 2px 5px; flex-shrink: 0;"></span>').text(grp.type);
-            $head.append($title).append($badge);
-
-            var $foot = $('<div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #777777; gap: 8px;"></div>');
-            var $now = $('<span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; min-width: 0;"></span>').text(grp.now || '-');
-            var $cnt = $('<span class="badge" style="font-size: 10px; background-color: #eeeeee; color: #666666; flex-shrink: 0;"></span>').text(grp.count);
-            $foot.append($now).append($cnt);
-
-            $item.append($head).append($foot);
-
-            $item.on('click', function () {
-                if (activeGroupName !== grp.name) {
-                    selectGroup(grp.name, grp.type, grp.selectable, grp.now);
-                }
-            });
-
-            $list.append($item);
-        });
-
-        if (renderedCount === 0) {
-            $list.append($('<li class="mihomo-empty"></li>').text('没有匹配的策略组'));
-        }
-    }
-
-    function selectGroup(groupName, groupType, selectable, now) {
-        activeGroupName = groupName;
-        activeGroupSelectable = (selectable === true || groupType === 'Selector');
-        nodeOffset = 0;
-        nodeSearchQuery = '';
-        $('#node_search_input').val('');
-
-        $('#group_list_container .mihomo-group-item').removeClass('is-active');
-        $('#group_list_container .mihomo-group-item').each(function () {
-            var nameInItem = $(this).find('span:first').text();
-            if (nameInItem === groupName) {
-                $(this).addClass('is-active');
-            }
-        });
-
-        $('#current_group_title').text(groupName);
-        $('#current_group_type').text(groupType);
-        $('#current_group_now').text(now || '-');
-
-        if (!activeGroupSelectable) {
-            $('#current_group_note').text('该策略组类型为 ' + groupType + '，由内核自动调度，不可手动切换节点。').show();
-        } else {
-            $('#current_group_note').text('点击任意节点可实时切换，切换仅在当前运行生效，重启后回到默认。').show();
-        }
-
-        loadNodes();
-    }
-
-    function loadNodes() {
-        if (!activeGroupName || nodeInFlight) {
-            return;
-        }
-
-        nodeInFlight = true;
-        var $grid = $('#node_grid_container');
-        $grid.css('opacity', 0.6);
-
-        var params = {
-            group: activeGroupName,
-            offset: nodeOffset,
-            limit: nodeLimit,
-            q: nodeSearchQuery
-        };
-
-        ajaxGet('/api/mihomo/proxies/getNodes', params, function (data) {
-            nodeInFlight = false;
-            $grid.css('opacity', 1);
-
-            if (!data || data.status !== 'ok' || !data.reachable) {
-                var msg = (data && data.message) ? data.message : '加载节点明细失败';
-                $grid.empty().append($('<div class="mihomo-empty" style="grid-column: 1 / -1;"></div>').text(msg));
-                return;
-            }
-
-            if (data.group !== activeGroupName) {
-                return;
-            }
-
-            nodeTotal = data.total || 0;
-            updatePaginationUI();
-            renderNodesGrid(data.nodes || []);
-        });
-    }
-
-    function renderNodesGrid(nodes) {
-        var $grid = $('#node_grid_container');
-        $grid.empty();
-
-        if (nodes.length === 0) {
-            $grid.append($('<div class="mihomo-empty" style="grid-column: 1 / -1;"></div>').text('未找到匹配的节点'));
-            return;
-        }
-
-        /* 紧凑行：名称（当前节点打勾） + 类型 + 延迟，多列铺满，无需滚动逐个看卡片 */
-        $.each(nodes, function (idx, node) {
-            var $row = $('<div class="mihomo-node"></div>');
-            if (node.current) {
-                $row.addClass('is-current');
-            }
-            if (!activeGroupSelectable) {
-                $row.addClass('is-disabled');
-            }
-
-            var $name = $('<span class="mihomo-node-name"></span>').text(node.name).attr('title', node.name);
-            if (node.current) {
-                $name.prepend($('<i class="fa fa-check"></i>'));
-                $row.attr('title', '{{ lang._("当前使用中的节点") }}');
-            } else if (activeGroupSelectable) {
-                $row.attr('title', '{{ lang._("点击切换到该节点") }}');
-            }
-
-            var $type = $('<span class="mihomo-node-type"></span>').text(node.type);
-            var delayInfo = formatDelay(node.delay);
-            var $delay = $('<span class="mihomo-delay ' + delayInfo.className + '"></span>').text(delayInfo.text);
-
-            $row.append($name).append($type).append($delay);
-
-            if (activeGroupSelectable && !node.current) {
-                $row.on('click', function () {
-                    confirmAndSelectNode(activeGroupName, node.name);
-                });
-            }
-
-            $grid.append($row);
+            renderAllCards();
         });
     }
 
@@ -362,11 +433,11 @@ $(document).ready(function () {
         }
 
         BootstrapDialog.confirm({
-            title: '切换节点',
-            message: '确定要将策略组「' + group + '」切换至节点「' + name + '」吗？（仅当前运行生效）',
+            title: '{{ lang._("切换节点") }}',
+            message: '{{ lang._("确定要将策略组「") }}' + group + '{{ lang._("」切换至节点「") }}' + name + '{{ lang._("」吗？（仅当前运行生效）") }}',
             type: BootstrapDialog.TYPE_PRIMARY,
-            btnCancelLabel: '取消',
-            btnOKLabel: '确认切换',
+            btnCancelLabel: '{{ lang._("取消") }}',
+            btnOKLabel: '{{ lang._("确认切换") }}',
             btnOKClass: 'btn-primary',
             callback: function (result) {
                 if (result) {
@@ -381,44 +452,84 @@ $(document).ready(function () {
         ajaxCall('/api/mihomo/proxies/select', { group: group, name: name }, function (res) {
             isSwitchingNode = false;
             if (res && res.status === 'ok') {
-                showToast('success', res.message || ('已成功切换至 ' + name));
-                // 刷新组与当前组节点
+                showToast('success', res.message || ('{{ lang._("已成功切换至 ") }}' + name));
                 loadGroups(true);
-                loadNodes();
             } else {
-                var err = (res && res.message) ? res.message : '切换失败';
+                var err = (res && res.message) ? res.message : '{{ lang._("切换失败") }}';
                 showToast('failed', err);
             }
         });
     }
 
-    function updatePaginationUI() {
-        var start = (nodeTotal > 0) ? (nodeOffset + 1) : 0;
-        var end = Math.min(nodeOffset + nodeLimit, nodeTotal);
-        $('#proxies_page_info').text(start + ' - ' + end + ' / ' + nodeTotal);
+    // 容器委托事件
+    $('#proxies_glist_container').on('click', function (e) {
+        var $jump = $(e.target).closest('[data-jump="1"]');
+        if ($jump.length > 0) {
+            e.stopPropagation();
+            var targetGroup = $jump.attr('data-target-group');
+            if (targetGroup) {
+                jumpToGroup(targetGroup);
+            }
+            return;
+        }
 
-        $('#proxies_prev').prop('disabled', nodeOffset <= 0);
-        $('#proxies_next').prop('disabled', (nodeOffset + nodeLimit) >= nodeTotal);
-    }
+        var $sel = $(e.target).closest('[data-sel="1"]');
+        if ($sel.length > 0) {
+            e.stopPropagation();
+            var gName = $sel.attr('data-group-name');
+            var nName = $sel.attr('data-node-name');
+            var grp = groupIndexMap[gName];
+            if (grp && (grp.selectable || grp.type === 'Selector')) {
+                if (grp.now !== nName) {
+                    confirmAndSelectNode(gName, nName);
+                }
+            }
+            return;
+        }
 
-    $('#proxies_prev').on('click', function () {
-        if (nodeOffset > 0) {
-            nodeOffset = Math.max(0, nodeOffset - nodeLimit);
-            loadNodes();
+        var $head = $(e.target).closest('.mh-ghead');
+        if ($head.length > 0) {
+            var $card = $head.closest('.mh-gcard');
+            var name = $card.attr('data-n');
+            if (name) {
+                OPEN[name] = !OPEN[name];
+                renderAllCards();
+            }
         }
     });
 
-    $('#proxies_next').on('click', function () {
-        if ((nodeOffset + nodeLimit) < nodeTotal) {
-            nodeOffset += nodeLimit;
-            loadNodes();
+    $('#proxies_glist_container').on('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            var $head = $(e.target).closest('.mh-ghead');
+            if ($head.length > 0) {
+                e.preventDefault();
+                var $card = $head.closest('.mh-gcard');
+                var name = $card.attr('data-n');
+                if (name) {
+                    OPEN[name] = !OPEN[name];
+                    renderAllCards();
+                }
+            }
         }
+    });
+
+    $('#btn_expand_all').on('click', function () {
+        var anyCollapsed = false;
+        $.each(groupsCache, function (i, g) {
+            if (!OPEN[g.name]) {
+                anyCollapsed = true;
+                return false;
+            }
+        });
+        $.each(groupsCache, function (i, g) {
+            OPEN[g.name] = anyCollapsed;
+        });
+        renderAllCards();
     });
 
     $('#node_search_input').on('input', function () {
-        nodeSearchQuery = $.trim($(this).val());
-        nodeOffset = 0;
-        loadNodes();
+        searchQuery = $.trim($(this).val());
+        renderAllCards();
     });
 
     $('#chk_include_global').on('change', function () {
@@ -427,7 +538,6 @@ $(document).ready(function () {
 
     $('#btn_refresh_proxies').on('click', function () {
         loadGroups(true);
-        loadNodes();
     });
 
     $('#btn_retry_conn').on('click', function () {
