@@ -218,27 +218,28 @@ echo "  [PASS] index.volt has zero :9090 literals and no hardcoded JS port/bind 
 echo "--> Test 8b: index.volt structure & element IDs..."
 for elem_id in \
     api_secret_masked btn_secret_reveal btn_secret_generate \
-    api_secret_custom btn_secret_apply api_bundled_link \
-    api_wan_warn api_header_port api_secret_help api_endpoint_display \
-    btn_copy_api_endpoint api_bind_badge collapse_secret_custom \
+    api_secret_custom btn_secret_apply \
+    api_wan_warn api_endpoint_display btn_copy_endpoint \
+    btn_api_save api_bind api_port \
     btn_start btn_stop btn_restart btn_reload service_status_badge \
     frm_general_settings btn_save \
     sub_url sub_url_hint sub_auto_update sub_interval \
     btn_sub_save btn_sub_update btn_sub_update_icon \
-    sub_state sub_state_time sub_state_result sub_state_counts sub_state_message; do
+    sub_state sub_state_time sub_state_result sub_state_message; do
     grep -q "$elem_id" "$INDEX_VOLT" || {
         echo "FAIL: index.volt missing required element/ID: $elem_id"; exit 1;
     }
 done
 for class_name in \
-    mihomo-card mihomo-card-head mihomo-form-wrap mihomo-kv mihomo-toolbar \
-    mihomo-modern-form mihomo-kv-rows mihomo-inline-ctl mihomo-row-cards; do
+    mihomo-card mihomo-card-head mihomo-form-wrap mihomo-toolbar \
+    mihomo-modern-form mihomo-kv-strip mh-fields; do
     grep -q "$class_name" "$INDEX_VOLT" || {
         echo "FAIL: index.volt missing required class: $class_name"; exit 1;
     }
 done
-# 已下线的结构不得回归：面板与 API 独立 Tab、客户端接入指南、订阅掩码行、策略来源选择器
-for gone in tab_api api_dashboard_guide api_guide_content api_link_preview sub_url_masked sub_strategy mihomo-radio-cards; do
+# 已下线的结构不得回归：面板与 API 独立 Tab、客户端接入指南、订阅掩码行、策略来源选择器、内置面板及旧密钥折叠
+for gone in tab_api api_dashboard_guide api_guide_content api_link_preview sub_url_masked sub_strategy mihomo-radio-cards \
+    api_bundled_link btn_copy_api_endpoint api_header_port api_secret_help collapse_secret_custom sub_state_counts; do
     if grep -q "$gone" "$INDEX_VOLT"; then
         echo "FAIL: index.volt must not keep removed element: $gone"; exit 1
     fi
@@ -254,12 +255,12 @@ for req_class in \
     mihomo-stat-grid mihomo-stat mihomo-stat-label mihomo-stat-value \
     mihomo-metric-grid mihomo-metric mihomo-kv mihomo-section \
     mihomo-guide mihomo-mode-row mihomo-chips mihomo-chip \
-    mihomo-proxy-layout mihomo-group-list mihomo-group-item \
-    mihomo-node-list mihomo-node mihomo-node-name mihomo-delay \
+    mihomo-delay \
     mihomo-picker-search mihomo-picker-list mihomo-picker-item \
-    mihomo-copy-btn mihomo-empty mihomo-kv-strip mihomo-kv-rows \
+    mihomo-empty mihomo-kv-strip mihomo-kv-rows \
     mihomo-inline-ctl mh-input-wide mh-col-index mihomo-query-bar \
-    mihomo-editor-table mihomo-toast mihomo-save-toast; do
+    mihomo-editor-table mihomo-toast mihomo-save-toast \
+    mh-fields mh-field mh-glist mh-gcard mh-ghead mh-gbody mh-mb-grid mh-mb; do
     grep -q "\.$req_class" "$STYLES_VOLT" || {
         echo "FAIL: styles.volt missing CSS class .$req_class"; exit 1;
     }

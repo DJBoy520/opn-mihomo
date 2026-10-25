@@ -111,9 +111,12 @@ pass "Api/ProxiesController.php security & contract assertions passed"
 
 # 5. 视图 proxies.volt 断言
 echo "--> Test 5: proxies.volt layout, classes, and rendering..."
-grep -q "mihomo-proxy-layout" "$VIEW_FILE" || fail "proxies.volt missing mihomo-proxy-layout"
-grep -q "mihomo-group-list" "$VIEW_FILE" || fail "proxies.volt missing mihomo-group-list"
-grep -q "mihomo-node-list" "$VIEW_FILE" || fail "proxies.volt missing mihomo-node-list（紧凑行列表）"
+grep -q "mh-glist" "$VIEW_FILE" || fail "proxies.volt missing mh-glist"
+grep -q "mh-gcard" "$VIEW_FILE" || fail "proxies.volt missing mh-gcard"
+grep -q "mh-ghead" "$VIEW_FILE" || fail "proxies.volt missing mh-ghead"
+grep -q "mh-gbody" "$VIEW_FILE" || fail "proxies.volt missing mh-gbody"
+grep -q "mh-mb-grid" "$VIEW_FILE" || fail "proxies.volt missing mh-mb-grid"
+grep -q "mh-mb" "$VIEW_FILE" || fail "proxies.volt missing mh-mb"
 grep -q "btn_refresh_proxies" "$VIEW_FILE" || fail "proxies.volt missing #btn_refresh_proxies"
 if grep -q "group_search_input" "$VIEW_FILE"; then
     fail "proxies.volt must not keep group_search_input（搜索策略组已按需求移除）"
@@ -121,10 +124,14 @@ fi
 grep -q "node_search_input" "$VIEW_FILE" || fail "proxies.volt missing node_search_input"
 grep -q "inFlight" "$VIEW_FILE" || fail "proxies.volt missing inFlight guard"
 grep -q "requestSeq" "$VIEW_FILE" || fail "proxies.volt missing requestSeq sequence guard"
-grep -q "proxies_prev" "$VIEW_FILE" || fail "proxies.volt missing #proxies_prev pagination button"
-grep -q "proxies_next" "$VIEW_FILE" || fail "proxies.volt missing #proxies_next pagination button"
-grep -q "proxies_page_info" "$VIEW_FILE" || fail "proxies.volt missing #proxies_page_info"
 grep -q "chk_include_global" "$VIEW_FILE" || fail "proxies.volt missing #chk_include_global"
+
+# 已下线的旧双栏及分页结构不得回归
+for gone in mihomo-proxy-layout mihomo-group-list mihomo-node-list proxies_prev proxies_next proxies_page_info; do
+    if grep -q "$gone" "$VIEW_FILE"; then
+        fail "proxies.volt must not keep removed element/class: $gone"
+    fi
+done
 
 # 5a. 零硬编码与安全红线：无 :9090，全部 .text()，严禁 .html() / innerHTML
 if grep -q ":9090" "$VIEW_FILE"; then
