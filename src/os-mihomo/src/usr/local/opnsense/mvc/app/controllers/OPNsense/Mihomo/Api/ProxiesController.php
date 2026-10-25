@@ -282,13 +282,36 @@ class ProxiesController extends ApiControllerBase
             $selectable = ($type === 'Selector');
             $count = count($item['all']);
 
-            // 严格白名单：只输出 name, type, now, count, selectable
+            // 透传成员名列表（纯名称数组）
+            $allMembers = [];
+            foreach ($item['all'] as $m) {
+                if (is_scalar($m)) {
+                    $allMembers[] = (string)$m;
+                }
+            }
+
+            // delay: history 末位整数值，无历史或非数值为 null
+            $delay = null;
+            if (isset($item['history']) && is_array($item['history']) && !empty($item['history'])) {
+                $lastHistory = end($item['history']);
+                if (is_array($lastHistory) && isset($lastHistory['delay']) && is_numeric($lastHistory['delay'])) {
+                    $delay = (int)$lastHistory['delay'];
+                }
+            }
+
+            // udpr: 布尔，透传 mihomo 的 udpr 字段
+            $udpr = !empty($item['udpr']);
+
+            // 严格白名单：只输出 name, type, now, count, selectable, all, delay, udpr
             $groups[] = [
                 'name' => (string)$name,
                 'type' => $type,
                 'now' => $now,
                 'count' => $count,
                 'selectable' => $selectable,
+                'all' => $allMembers,
+                'delay' => $delay,
+                'udpr' => $udpr,
             ];
         }
 
