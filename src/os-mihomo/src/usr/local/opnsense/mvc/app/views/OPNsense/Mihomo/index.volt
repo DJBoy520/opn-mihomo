@@ -178,66 +178,72 @@
             <div class="mihomo-card">
                 <div class="mihomo-card-head">
                     <h2 class="mihomo-card-title">
-                        <span><i class="fa fa-tachometer"></i> {{ lang._('面板与 API') }} <span id="api_header_port" class="badge" style="margin-left: 8px; font-weight: normal; background-color: #f0f0f0; color: #555555;"></span></span>
+                        <span><i class="fa fa-tachometer"></i> {{ lang._('面板与 API') }}</span>
                     </h2>
                 </div>
                 <div class="mihomo-card-body">
-                    <table class="table mihomo-kv">
-                        <tbody>
-                            <tr>
-                                <th>{{ lang._('内置面板') }}</th>
-                                <td>
-                                    <a id="api_bundled_link" href="#" target="_blank" rel="noopener noreferrer">-</a>
-                                    <button type="button" class="btn btn-xs btn-default mihomo-copy-btn" id="btn_copy_api_endpoint" style="margin-left: 8px;">
-                                        <i class="fa fa-clipboard"></i> {{ lang._('复制端点') }}
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th>{{ lang._('控制 API') }}</th>
-                                <td>
-                                    <code id="api_endpoint_display" class="mihomo-mono">-</code>
-                                    <span id="api_bind_badge" class="label label-default mihomo-mono" style="margin-left: 8px; font-size: 11px;">-</span>
-                                    <div class="text-muted" style="font-size: 12px; margin-top: 4px;">
-                                        {{ lang._('外部面板（metacubexd / Zashboard）与自建流量工具填此地址，配合下方密钥使用。') }}
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th>{{ lang._('认证密钥') }}</th>
-                                <td>
-                                    <code id="api_secret_masked" class="mihomo-mono" style="font-size: 13px;">{{ lang._('加载中...') }}</code>
-                                    <div style="margin-top: 6px;">
-                                        <button class="btn btn-xs btn-default" id="btn_secret_reveal" type="button">
-                                            <i class="fa fa-eye"></i> {{ lang._('查看密钥') }}
-                                        </button>
-                                        <button class="btn btn-xs btn-warning" id="btn_secret_generate" type="button" style="margin-left: 6px;">
-                                            <i class="fa fa-refresh"></i> {{ lang._('生成新密钥') }}
-                                        </button>
-                                        <a href="#collapse_secret_custom" data-toggle="collapse" style="margin-left: 12px; font-size: 12px;">
-                                            <i class="fa fa-caret-right"></i> {{ lang._('自定义密钥') }}
-                                        </a>
-                                    </div>
-                                    <div id="collapse_secret_custom" class="collapse" style="margin-top: 10px;">
-                                        <div class="input-group" style="max-width: 480px;">
-                                            <input type="text" class="form-control input-sm" id="api_secret_custom" placeholder="{{ lang._('4-128 个字符') }}" autocomplete="off" spellcheck="false"/>
-                                            <span class="input-group-btn">
-                                                <button class="btn btn-primary btn-sm" id="btn_secret_apply" type="button">
-                                                    <b>{{ lang._('应用') }}</b> <i id="btn_secret_apply_progress"></i>
-                                                </button>
-                                            </span>
-                                        </div>
-                                        <span class="help-block" style="font-size: 12px; margin-bottom: 0;">{{ lang._('仅允许字母、数字以及 . _ ~ @ # % ^ + = : ; , ! ? * -') }}</span>
-                                    </div>
-                                    <div class="text-muted" id="api_secret_help" style="font-size: 12px; margin-top: 6px;">
-                                        {{ lang._('修改后同步写入配置并热重载生效；旧密钥立即失效。') }}
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <div id="api_wan_warn" class="mihomo-callout-warning" style="display: none; margin-top: 10px; margin-bottom: 0;">
+                    <div class="mh-fields is-2">
+                        <div class="mh-field is-full">
+                            <div class="mh-field-label">{{ lang._('控制 API 地址') }}</div>
+                            <div class="mh-field-control">
+                                <span class="mh-code" id="api_endpoint_display">-</span>
+                                <button type="button" class="btn btn-xs btn-default" id="btn_copy_endpoint">
+                                    <i class="fa fa-clipboard"></i> {{ lang._('复制') }}
+                                </button>
+                            </div>
+                            <div class="mh-field-hint">
+                                {{ lang._('外部面板（metacubexd / Zashboard）与自建流量工具填此地址，配合下方密钥使用。') }}
+                            </div>
+                        </div>
+
+                        <div class="mh-field">
+                            <div class="mh-field-label">{{ lang._('API 绑定地址') }}</div>
+                            <div class="mh-field-control">
+                                <input type="text" class="form-control" id="api_bind" placeholder="{{ lang._('如 192.168.1.1 / 127.0.0.1') }}" autocomplete="off" spellcheck="false"/>
+                            </div>
+                        </div>
+
+                        <div class="mh-field">
+                            <div class="mh-field-label">{{ lang._('API 端口') }}</div>
+                            <div class="mh-field-control">
+                                <input type="text" class="form-control" id="api_port" placeholder="1024-65535" autocomplete="off" spellcheck="false"/>
+                            </div>
+                        </div>
+
+                        <div class="mh-field is-full">
+                            <div class="mh-field-label">{{ lang._('认证密钥') }}</div>
+                            <div class="mh-field-control">
+                                <span class="mh-code mh-secret" id="api_secret_masked">{{ lang._('加载中...') }}</span>
+                                <button type="button" class="btn btn-xs btn-default" id="btn_secret_reveal">
+                                    <i class="fa fa-eye"></i> {{ lang._('查看密钥') }}
+                                </button>
+                                <button type="button" class="btn btn-xs btn-warning" id="btn_secret_generate">
+                                    <i class="fa fa-refresh"></i> {{ lang._('生成新密钥') }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mh-field is-full is-last">
+                            <div class="mh-field-label">{{ lang._('自定义密钥') }} <span class="tag">{{ lang._('可选') }}</span></div>
+                            <div class="mh-inline-form">
+                                <input type="text" class="form-control mh-input-wide" id="api_secret_custom" placeholder="{{ lang._('4-128 个字符') }}" autocomplete="off" spellcheck="false"/>
+                                <button type="button" class="btn btn-default" id="btn_secret_apply">
+                                    {{ lang._('填入') }}
+                                </button>
+                            </div>
+                            <div class="mh-field-hint">{{ lang._('仅允许字母、数字以及 . _ ~ @ # % ^ + = : ; , ! ? * -') }}</div>
+                        </div>
+                    </div>
+
+                    <div id="api_wan_warn" class="mihomo-callout-warning" style="display: none; margin-top: 14px; margin-bottom: 0;">
                         <i class="fa fa-exclamation-triangle"></i> {{ lang._('已监听全部网络接口（0.0.0.0）。建议仅在 LAN 接口监听并确保 WAN 防火墙阻断未授权流量。') }}
+                    </div>
+
+                    <div class="mihomo-toolbar" style="margin: 16px 0 0; padding-top: 14px; border-top: 1px dashed var(--mh-card-border); margin-bottom: 0;">
+                        <button type="button" class="btn btn-primary" id="btn_api_save">
+                            <b>{{ lang._('保存并应用') }}</b> <i id="btn_api_save_progress"></i>
+                        </button>
+                        <span class="text-muted" style="font-size: 12px; margin-left: 8px;">{{ lang._('卡内改动（绑定地址、端口、密钥）点此按钮才写入配置并热重载') }}</span>
                     </div>
                 </div>
             </div>
@@ -252,24 +258,28 @@
                     </h2>
                 </div>
                 <div class="mihomo-card-body">
-                    <div class="form-group" style="max-width: 860px;">
-                        <label for="sub_url">{{ lang._('订阅地址') }}</label>
-                        <input type="text" class="form-control mh-input-wide" id="sub_url" placeholder="https://..." autocomplete="off" spellcheck="false"/>
-                        <span class="help-block text-muted" id="sub_url_hint">{{ lang._('请输入 https 订阅地址。') }}</span>
-                    </div>
-
-                    <div class="row" style="max-width: 860px;">
-                        <div class="col-sm-6">
-                            <div class="checkbox" style="margin-top: 5px;">
-                                <label style="font-weight: normal;">
-                                    <input type="checkbox" id="sub_auto_update"/> {{ lang._('启用自动更新') }}
-                                </label>
+                    <div class="mh-fields is-2">
+                        <div class="mh-field is-full">
+                            <div class="mh-field-label">{{ lang._('订阅地址') }}</div>
+                            <div class="mh-field-control">
+                                <input type="text" class="form-control mh-input-wide" id="sub_url" placeholder="https://..." autocomplete="off" spellcheck="false"/>
                             </div>
+                            <div class="mh-field-hint" id="sub_url_hint">{{ lang._('请输入 https 订阅地址。') }}</div>
                         </div>
-                        <div class="col-sm-6">
-                            <div class="form-group">
-                                <label for="sub_interval" style="font-size: 13px;">{{ lang._('更新周期') }}</label>
-                                <select id="sub_interval" class="form-control input-sm" style="max-width: 200px;">
+
+                        <div class="mh-field is-switch">
+                            <div class="mh-field-control">
+                                <input type="checkbox" id="sub_auto_update" style="width: 18px; height: 18px; cursor: pointer;"/>
+                            </div>
+                            <label class="mh-field-label" for="sub_auto_update" style="margin-bottom: 0;">{{ lang._('启用自动更新') }}</label>
+                        </div>
+
+                        <div class="mh-field">
+                            <div class="mh-field-label">
+                                <label for="sub_interval" style="font-size: 13px; font-weight: 600; margin-bottom: 0;">{{ lang._('自动更新周期') }}</label>
+                            </div>
+                            <div class="mh-field-control">
+                                <select id="sub_interval" class="form-control">
                                     <option value="o6h">{{ lang._('每 6 小时') }}</option>
                                     <option value="o12h">{{ lang._('每 12 小时') }}</option>
                                     <option value="o24h">{{ lang._('每 24 小时') }}</option>
@@ -278,31 +288,28 @@
                         </div>
                     </div>
 
-                    <div class="mihomo-toolbar" style="margin-top: 10px; margin-bottom: 6px;">
+                    <div class="mihomo-toolbar" style="margin: 14px 0 0; padding-top: 14px; border-top: 1px dashed var(--mh-card-border); margin-bottom: 6px;">
                         <button class="btn btn-primary" id="btn_sub_save" type="button">
                             <b>{{ lang._('保存订阅') }}</b> <i id="btn_sub_save_progress"></i>
                         </button>
                         <button class="btn btn-info" id="btn_sub_update" type="button">
                             <i class="fa fa-cloud-download" id="btn_sub_update_icon"></i> {{ lang._('立即更新') }}
                         </button>
+                        <span class="text-muted" style="font-size: 12px; margin-left: 8px;">{{ lang._('改地址不触发拉取') }}</span>
                     </div>
                     <div id="sub_state_message" class="text-muted" style="font-size: 12px; margin-bottom: 18px;"></div>
 
-                    <div class="mihomo-section-title">
-                        <i class="fa fa-history"></i> {{ lang._('最近更新状态') }}
+                    <div class="mihomo-card-title" style="font-size: 14px; font-weight: 600; margin: 20px 0 0;">
+                        <span><i class="fa fa-history"></i> {{ lang._('最近更新状态') }}</span>
                     </div>
-                    <div id="sub_state" class="mihomo-kv-rows" style="max-width: 560px;">
+                    <div id="sub_state" class="mihomo-kv-strip" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
                         <div>
-                            <span class="mh-kv-label">{{ lang._('更新时间') }}</span>
-                            <span class="mh-kv-value mihomo-mono" id="sub_state_time">-</span>
+                            <div class="mh-kv-label">{{ lang._('更新时间') }}</div>
+                            <div class="mh-kv-value mihomo-mono" id="sub_state_time">-</div>
                         </div>
                         <div>
-                            <span class="mh-kv-label">{{ lang._('更新结果') }}</span>
-                            <span class="mh-kv-value"><span id="sub_state_result" class="label label-default">-</span></span>
-                        </div>
-                        <div>
-                            <span class="mh-kv-label">{{ lang._('节点 / 策略组 / 分流规则') }}</span>
-                            <span class="mh-kv-value mihomo-mono" id="sub_state_counts">-</span>
+                            <div class="mh-kv-label">{{ lang._('更新结果') }}</div>
+                            <div class="mh-kv-value"><span id="sub_state_result" class="label label-default">-</span></div>
                         </div>
                     </div>
                 </div>
@@ -549,30 +556,17 @@ $(function () {
         currentApiPort = (port && String(port).trim().length > 0) ? String(port).trim() : '';
 
         if (!currentApiPort) {
-            $('#api_header_port').text('');
             $('#api_endpoint_display').text('-');
-            $('#api_bind_badge').text('-');
-            $('#api_bundled_link').attr('href', '#').text('-').css('pointer-events', 'none').css('text-decoration', 'none');
-            $('#btn_copy_api_endpoint').prop('disabled', true);
+            $('#btn_copy_endpoint').prop('disabled', true);
             $('#api_wan_warn').hide();
             return;
         }
 
         var dispHost = (currentApiBind === '0.0.0.0') ? window.location.hostname : (currentApiBind || window.location.hostname);
         var endpointUrl = 'http://' + dispHost + ':' + currentApiPort;
-        var bundledUrl = endpointUrl + '/ui/';
 
-        $('#api_header_port').text('{{ lang._("端口") }} ' + currentApiPort);
         $('#api_endpoint_display').text(endpointUrl);
-        $('#api_bind_badge').text((currentApiBind || '-') + ':' + currentApiPort);
-
-        $('#api_bundled_link')
-            .attr('href', bundledUrl)
-            .text(bundledUrl)
-            .css('pointer-events', 'auto')
-            .css('text-decoration', 'underline');
-
-        $('#btn_copy_api_endpoint').prop('disabled', false);
+        $('#btn_copy_endpoint').prop('disabled', false);
 
         if (currentApiBind === '0.0.0.0') {
             $('#api_wan_warn').show();
@@ -581,7 +575,7 @@ $(function () {
         }
     }
 
-    $('#btn_copy_api_endpoint').click(function () {
+    $('#btn_copy_endpoint').click(function () {
         var endpoint = $('#api_endpoint_display').text();
         if (endpoint && endpoint !== '-') {
             copyToClipboard(endpoint, '{{ lang._("API 端点地址已复制到剪贴板。") }}');
@@ -595,11 +589,22 @@ $(function () {
             $('#api_secret_masked').text(masked || '{{ lang._("未配置") }}');
             var bind = gen.api_bind;
             var port = gen.api_port;
+            if ($('#api_bind').length && !$('#api_bind').data('user-touched')) {
+                $('#api_bind').val(bind || '');
+            }
+            if ($('#api_port').length && !$('#api_port').data('user-touched')) {
+                $('#api_port').val(port || '');
+            }
             updateApiDisplay(bind, port);
             /* 概览：开机自启（配置意图；运行态接入方式与内核模式由 getMihomoStatus 驱动） */
             $('#ov_autostart').text(flagEnabled(gen.enabled) === '1' ? '{{ lang._("开") }}' : '{{ lang._("关") }}');
         });
     }
+
+    $('#api_bind, #api_port').on('input change', function () {
+        $(this).data('user-touched', true);
+        updateApiDisplay($('#api_bind').val(), $('#api_port').val());
+    });
 
     /* 内核模式：运行时模式下拉（原运行状态页功能并入概览） */
     function loadCoreMode() {
@@ -666,8 +671,15 @@ $(function () {
         formatTokenizersUI();
         $('.selectpicker').selectpicker('refresh');
         classifyFormRows();
+        hideFormApiRows();
         updateStatus(true);
     });
+
+    /* 隐藏运行参数中与面板与 API 重复的 api_bind / api_port 行，避免两处编辑冲突 */
+    function hideFormApiRows() {
+        $('#frm_general_settings [id$="general.api_bind"]').closest('tr').hide();
+        $('#frm_general_settings [id$="general.api_port"]').closest('tr').hide();
+    }
 
     /* 宽屏两列表单：仅 checkbox 行占满整行（长 help 行在两列内换行展示） */
     function classifyFormRows() {
@@ -814,7 +826,6 @@ $(function () {
         if (!lastUpdate || typeof lastUpdate !== 'object') {
             subLastUpdateTime = null;
             $('#sub_state_time').text('-').attr('title', '');
-            $('#sub_state_counts').text('-');
             $badge.addClass('label-default').text('-');
             $('#ov_nodes').text('-');
             $('#ov_groups').text('-');
@@ -824,10 +835,9 @@ $(function () {
             return;
         }
         subLastUpdateTime = lastUpdate.time ? String(lastUpdate.time) : null;
-        /* 时间：相对时间展示，悬停显示完整时间；数量统一千分位 */
+        /* 时间：相对时间展示，悬停显示完整时间 */
         $('#sub_state_time').text(relativeTime(lastUpdate.time))
             .attr('title', lastUpdate.time ? String(lastUpdate.time).replace('T', ' ').replace('Z', ' (UTC)') : '');
-        $('#sub_state_counts').text(fmtNum(lastUpdate.nodes) + ' / ' + fmtNum(lastUpdate.groups) + ' / ' + fmtNum(lastUpdate.rules));
         var result = (lastUpdate.result ? String(lastUpdate.result) : '').toLowerCase();
         var resultText = '-';
         var resultClass = 'label-default';
@@ -1025,38 +1035,32 @@ $(function () {
         });
     });
 
-    $('#btn_secret_generate').click(function () {
-        BootstrapDialog.confirm({
-            title: '{{ lang._("确认生成新密钥") }}',
-            message: '{{ lang._("生成新密钥并热重载 Mihomo？旧密钥将立即失效。") }}',
-            type: BootstrapDialog.TYPE_WARNING,
-            btnCancelLabel: '{{ lang._("取消") }}',
-            btnOKLabel: '{{ lang._("生成新密钥") }}',
-            btnOKClass: 'btn-warning',
-            callback: function (confirmed) {
-                if (!confirmed) {
-                    return;
-                }
-                ajaxCall('/api/mihomo/general/regenerateSecret', {}, function (data) {
-                    if (data && data.status === 'ok') {
-                        if (typeof data.secret_masked === 'string' && data.secret_masked.length > 0) {
-                            $('#api_secret_masked').text(data.secret_masked);
-                        }
-                        showSecretDialog('{{ lang._("新 API 密钥") }}', data.secret || '');
-                    } else {
-                        BootstrapDialog.show({
-                            type: BootstrapDialog.TYPE_DANGER,
-                            title: '{{ lang._("错误") }}',
-                            message: textBlock(data && data.message ? data.message : '{{ lang._("生成新密钥失败。") }}')
-                        });
-                    }
-                });
+    function generateRandomSecret(len) {
+        len = len || 32;
+        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        var arr = new Uint8Array(len);
+        if (window.crypto && window.crypto.getRandomValues) {
+            window.crypto.getRandomValues(arr);
+        } else {
+            for (var i = 0; i < len; i++) {
+                arr[i] = Math.floor(Math.random() * 256);
             }
-        });
+        }
+        var str = '';
+        for (var j = 0; j < len; j++) {
+            str += chars[arr[j] % chars.length];
+        }
+        return str;
+    }
+
+    $('#btn_secret_generate').click(function () {
+        var newSec = generateRandomSecret(32);
+        $('#api_secret_custom').val(newSec);
+        mhToast('{{ lang._("已生成随机密钥并填入自定义密钥输入框，请点击下方「保存并应用」生效。") }}', 'info');
     });
 
     $('#btn_secret_apply').click(function () {
-        var secret = $('#api_secret_custom').val();
+        var secret = $.trim($('#api_secret_custom').val());
         if (secret.length < 4 || secret.length > 128) {
             BootstrapDialog.show({
                 type: BootstrapDialog.TYPE_WARNING,
@@ -1073,27 +1077,84 @@ $(function () {
             });
             return;
         }
-        var $progress = $('#btn_secret_apply_progress');
-        var $button = $('#btn_secret_apply');
+        mhToast('{{ lang._("密钥已就绪，请点击下方「保存并应用」统一提交保存。") }}', 'info');
+    });
+
+    $('#btn_api_save').click(function () {
+        var bind = $.trim($('#api_bind').val());
+        var port = $.trim($('#api_port').val());
+        var customSecret = $.trim($('#api_secret_custom').val());
+
+        if (customSecret.length > 0) {
+            if (customSecret.length < 4 || customSecret.length > 128) {
+                BootstrapDialog.show({
+                    type: BootstrapDialog.TYPE_WARNING,
+                    title: '{{ lang._("错误") }}',
+                    message: textBlock('{{ lang._("密钥长度必须为 4-128 个字符。") }}')
+                });
+                return;
+            }
+            if (!/^[A-Za-z0-9._~@#%^+=:;,!?*-]+$/.test(customSecret)) {
+                BootstrapDialog.show({
+                    type: BootstrapDialog.TYPE_WARNING,
+                    title: '{{ lang._("错误") }}',
+                    message: textBlock('{{ lang._("仅允许字母、数字以及 . _ ~ @ # % ^ + = : ; , ! ? * -") }}')
+                });
+                return;
+            }
+        }
+
+        var $progress = $('#btn_api_save_progress');
+        var $button = $('#btn_api_save');
         $progress.addClass('fa fa-spinner fa-pulse');
         $button.prop('disabled', true);
-        ajaxCall('/api/mihomo/general/secretSet', { secret: secret }, function (data) {
-            $progress.removeClass('fa fa-spinner fa-pulse');
-            $button.prop('disabled', false);
-            if (data && data.status === 'ok') {
-                $('#api_secret_custom').val('');
-                if (typeof data.secret_masked === 'string' && data.secret_masked.length > 0) {
-                    $('#api_secret_masked').text(data.secret_masked);
+
+        // 如果填写了自定义密钥，先写密钥，成功后再存 general 配置
+        function saveGeneralParams() {
+            var payload = {
+                general: {
+                    api_bind: bind,
+                    api_port: port
                 }
-                mhToast(data.message || '{{ lang._("API 密钥已更新。") }}', 'success');
-            } else {
-                BootstrapDialog.show({
-                    type: BootstrapDialog.TYPE_DANGER,
-                    title: '{{ lang._("错误") }}',
-                    message: textBlock(data && data.message ? data.message : '{{ lang._("更新 API 密钥失败。") }}')
-                });
-            }
-        });
+            };
+            ajaxCall('/api/mihomo/general/setGeneral', payload, function (data) {
+                $progress.removeClass('fa fa-spinner fa-pulse');
+                $button.prop('disabled', false);
+                updateStatus(true);
+                var failed = (data && data.status === 'failed');
+                if (failed) {
+                    BootstrapDialog.show({
+                        type: BootstrapDialog.TYPE_DANGER,
+                        title: '{{ lang._("错误") }}',
+                        message: textBlock(data && data.message ? data.message : '{{ lang._("保存设置失败。") }}')
+                    });
+                } else {
+                    $('#api_bind').data('user-touched', false);
+                    $('#api_port').data('user-touched', false);
+                    $('#api_secret_custom').val('');
+                    showSaveToast('{{ lang._("控制 API 设置已保存并应用。") }}');
+                    loadSecretMasked();
+                }
+            });
+        }
+
+        if (customSecret.length > 0) {
+            ajaxCall('/api/mihomo/general/secretSet', { secret: customSecret }, function (secData) {
+                if (secData && secData.status === 'ok') {
+                    saveGeneralParams();
+                } else {
+                    $progress.removeClass('fa fa-spinner fa-pulse');
+                    $button.prop('disabled', false);
+                    BootstrapDialog.show({
+                        type: BootstrapDialog.TYPE_DANGER,
+                        title: '{{ lang._("错误") }}',
+                        message: textBlock(secData && secData.message ? secData.message : '{{ lang._("更新 API 密钥失败。") }}')
+                    });
+                }
+            });
+        } else {
+            saveGeneralParams();
+        }
     });
 
     /* ---------- 初始化 ---------- */
